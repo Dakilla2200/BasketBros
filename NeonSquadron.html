@@ -1,0 +1,1081 @@
+<title>Neon Squadron</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+/* Layout: full-bleed canvas stage; frosted-glass HUD strips pinned to the safe-area edges; centered glass overlays for menu / pause / game over. Single dark neon look by design. */
+:root{
+  --void:#07040f;
+  --ink:#eaf6ff;
+  --ink-dim:rgba(234,246,255,.62);
+  --cyan:#29f3ff;
+  --magenta:#ff2bd6;
+  --violet:#7b4dff;
+  --amber:#ffb53a;
+  --danger:#ff3b6b;
+  --glass:rgba(22,12,44,.44);
+  --glass-hi:rgba(60,30,110,.38);
+  --glass-edge:rgba(150,225,255,.26);
+  --display:"Russo One","Arial Black",Impact,system-ui,sans-serif;
+  --ui:"Chakra Petch","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r-lg:20px; --r-md:12px;
+  --ease-out:cubic-bezier(.2,.9,.25,1.2);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--void);color:var(--ink);font-family:var(--ui);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--void)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+
+/* ---------- Glass system ---------- */
+.glass{
+  background:linear-gradient(160deg,var(--glass-hi),var(--glass));
+  -webkit-backdrop-filter:blur(8px) saturate(150%);backdrop-filter:blur(8px) saturate(150%);
+  border:1px solid var(--glass-edge);border-radius:var(--r-md);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 24px rgba(123,77,255,.18),0 10px 30px rgba(0,0,0,.4);
+}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none}
+#hudTop{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;justify-content:space-between;align-items:stretch;gap:10px;opacity:0;transform:translateY(-14px);transition:opacity .35s ease,transform .45s var(--ease-out)}
+#hud.live #hudTop{opacity:1;transform:none}
+.stat{padding:7px 14px 6px;display:flex;flex-direction:column;gap:1px;min-width:96px}
+.stat .k{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-dim);font-weight:600}
+.stat .v{font-family:var(--display);font-size:22px;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(41,243,255,.7)}
+.stat.pwr .v{color:var(--amber);text-shadow:0 0 12px rgba(255,181,58,.75)}
+#pauseBtn{pointer-events:auto;width:46px;display:grid;place-items:center;font-size:16px;letter-spacing:2px;transition:transform .15s,box-shadow .2s}
+#pauseBtn:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 22px rgba(41,243,255,.45)}
+#pauseBtn:active{transform:scale(.92)}
+#fps{position:absolute;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));padding:4px 9px;font-size:11px;letter-spacing:.08em;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+
+/* ---------- Overlays ---------- */
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s;background:radial-gradient(ellipse at 50% 40%,rgba(7,4,15,0) 0%,rgba(7,4,15,.55) 80%)}
+.overlay.show{opacity:1;visibility:visible;transition:opacity .35s ease}
+.panel{width:min(100%,380px);padding:26px 22px 22px;border-radius:var(--r-lg);display:flex;flex-direction:column;gap:16px;text-align:center;transform:translateY(24px) scale(.96);opacity:0}
+.overlay.show .panel{animation:panelIn .55s var(--ease-out) forwards}
+@keyframes panelIn{to{transform:none;opacity:1}}
+.eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--cyan);font-weight:700}
+.title{font-family:var(--display);font-size:clamp(40px,12vw,56px);line-height:.92;margin:0;text-wrap:balance;background:linear-gradient(180deg,#fff 0%,#9ff8ff 38%,var(--magenta) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 14px rgba(255,43,214,.55));animation:titleGlow 3.2s ease-in-out infinite}
+@keyframes titleGlow{50%{filter:drop-shadow(0 0 22px rgba(41,243,255,.7))}}
+.sub{margin:0;color:var(--ink-dim);font-size:15px;line-height:1.45}
+.btn{position:relative;padding:14px 18px;border-radius:var(--r-md);font-family:var(--display);font-size:20px;letter-spacing:.06em;color:#fff;background:linear-gradient(100deg,var(--magenta),var(--violet) 55%,#2bb8ff);background-size:200% 100%;box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 0 26px rgba(255,43,214,.5);transition:transform .18s var(--ease-out),box-shadow .25s,background-position .6s;pointer-events:auto}
+.btn:hover{background-position:100% 0;box-shadow:0 0 0 1px rgba(255,255,255,.25) inset,0 0 36px rgba(41,243,255,.6)}
+.btn:active{transform:scale(.96)}
+.btn.ghost{background:rgba(255,255,255,.06);box-shadow:0 0 0 1px var(--glass-edge) inset;font-size:16px}
+.btn.ghost:hover{box-shadow:0 0 0 1px var(--cyan) inset,0 0 20px rgba(41,243,255,.35)}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tog{pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:var(--r-md);background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--glass-edge) inset;font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;transition:box-shadow .2s}
+.tog .pill{width:34px;height:18px;border-radius:9px;background:rgba(255,255,255,.14);position:relative;transition:background .25s}
+.tog .pill::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .3s var(--ease-out)}
+.tog[aria-pressed="true"] .pill{background:linear-gradient(90deg,var(--cyan),var(--magenta));box-shadow:0 0 12px rgba(41,243,255,.6)}
+.tog[aria-pressed="true"] .pill::after{transform:translateX(16px)}
+.keys{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--ink-dim);letter-spacing:.04em}
+.keys kbd{font-family:var(--ui);font-weight:700;padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.08);box-shadow:0 0 0 1px var(--glass-edge) inset;color:var(--ink)}
+.score-big{font-family:var(--display);font-size:46px;line-height:1;font-variant-numeric:tabular-nums;color:var(--amber);text-shadow:0 0 18px rgba(255,181,58,.7)}
+.row{display:flex;flex-direction:column;gap:10px}
+#flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,59,107,0) 40%,rgba(255,59,107,.5));opacity:0;transition:opacity .3s ease}
+@media (prefers-reduced-motion: reduce){
+  .title{animation:none}
+  .overlay.show .panel{animation-duration:.01s}
+}
+</style>
+
+<canvas id="stage" aria-label="Neon Squadron game"></canvas>
+<div id="flash"></div>
+
+<div id="hud">
+  <div id="hudTop">
+    <div class="stat glass"><span class="k">Score</span><span class="v" id="scoreV">0</span></div>
+    <div class="stat glass pwr"><span class="k">Power</span><span class="v" id="powerV">10</span></div>
+    <button id="pauseBtn" class="glass" aria-label="Pause">II</button>
+  </div>
+  <div id="fps" class="glass" hidden>-- fps</div>
+</div>
+
+<div class="overlay show" id="menu">
+  <div class="panel glass">
+    <span class="eyebrow">Phase 1 · Flight core</span>
+    <h1 class="title">NEON<br>SQUADRON</h1>
+    <p class="sub">Drag to steer. Your guns fire on their own. Shoot the drones before they ram you.</p>
+    <button class="btn" id="startBtn">LAUNCH</button>
+    <div class="toggles">
+      <button class="tog" id="sfxTog" aria-pressed="true">SFX <span class="pill"></span></button>
+      <button class="tog" id="musTog" aria-pressed="true">Music <span class="pill"></span></button>
+    </div>
+    <div class="keys"><span><kbd>Drag</kbd> / <kbd>←</kbd><kbd>→</kbd> steer</span><span><kbd>P</kbd> pause</span><span><kbd>F</kbd> fps</span></div>
+  </div>
+</div>
+
+<div class="overlay" id="pause">
+  <div class="panel glass">
+    <span class="eyebrow">Paused</span>
+    <div class="row">
+      <button class="btn" id="resumeBtn">RESUME</button>
+      <button class="btn ghost" id="restartBtn">Restart run</button>
+    </div>
+    <div class="toggles">
+      <button class="tog" id="sfxTog2" aria-pressed="true">SFX <span class="pill"></span></button>
+      <button class="tog" id="musTog2" aria-pressed="true">Music <span class="pill"></span></button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="over">
+  <div class="panel glass">
+    <span class="eyebrow">Signal lost</span>
+    <div class="score-big" id="finalScore">0</div>
+    <p class="sub" id="overSub">Drones destroyed: 0</p>
+    <button class="btn" id="retryBtn">FLY AGAIN</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   0. CONFIG + MATH
+   ===================================================================== */
+const CONFIG = {
+  FIELD_W: 450,          // logical play-field width (world units)
+  FIELD_H: 760,          // minimum logical height used for fitting
+  STEP: 1 / 120,         // fixed simulation step (s)
+  MAX_FRAME: 0.1,        // clamp for long frames (tab switches)
+  HITSTOP_FRAMES: 3,     // render frames frozen on heavy impacts
+  DPR_MAX: 2,
+  PARTICLE_CAP: 1600,
+  HORIZON: 0.24,         // horizon line as a fraction of view height
+};
+
+// Sprite-sheet slots. Set `src` to an image URL / data URI and the entity
+// switches from vector placeholder to sprite automatically.
+const SPRITES = {
+  player: { src: null, frameWidth: 128, frameHeight: 128, frameCount: 4, frameSpeed: 12, row: 0, scale: 0.62 },
+  drone:  { src: null, frameWidth: 96,  frameHeight: 96,  frameCount: 6, frameSpeed: 10, row: 0, scale: 0.6 },
+};
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const damp = (a, b, rate, dt) => a + (b - a) * (1 - Math.exp(-rate * dt)); // frame-rate independent lerp
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+
+const PALETTE = { cyan: '#29f3ff', magenta: '#ff2bd6', violet: '#7b4dff', amber: '#ffb53a', white: '#ffffff', danger: '#ff3b6b', lime: '#8dff5a' };
+
+/* =====================================================================
+   1. SETTINGS (persisted per viewer)
+   ===================================================================== */
+const Settings = {
+  sfx: true, music: true,
+  load() { try { Object.assign(this, JSON.parse(localStorage.getItem('neonsq.settings') || '{}')); } catch (e) {} },
+  save() { try { localStorage.setItem('neonsq.settings', JSON.stringify({ sfx: this.sfx, music: this.music })); } catch (e) {} },
+};
+Settings.load();
+
+/* =====================================================================
+   2. AUDIO ENGINE — fully synthesized (no files), bus-mixed, voice-limited
+   ===================================================================== */
+class AudioEngine {
+  constructor() { this.ctx = null; this.last = {}; this.seqTimer = null; this.step = 0; this.nextTime = 0; }
+
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    const c = this.ctx;
+    this.comp = c.createDynamicsCompressor();
+    this.comp.threshold.value = -14; this.comp.ratio.value = 5; this.comp.attack.value = 0.003; this.comp.release.value = 0.2;
+    this.master = c.createGain(); this.master.gain.value = 0.9;
+    this.sfxBus = c.createGain(); this.sfxBus.gain.value = Settings.sfx ? 0.8 : 0;
+    this.musBus = c.createGain(); this.musBus.gain.value = Settings.music ? 0.32 : 0;
+    this.sfxBus.connect(this.master); this.musBus.connect(this.master);
+    this.master.connect(this.comp).connect(c.destination);
+    // shared noise buffer
+    const len = c.sampleRate * 1.2; this.noiseBuf = c.createBuffer(1, len, c.sampleRate);
+    const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    // soft-clip curve for gritty hits
+    this.curve = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; this.curve[i] = Math.tanh(x * 3); }
+    this.startMusic();
+  }
+
+  setSfx(on) { if (this.sfxBus) this.sfxBus.gain.setTargetAtTime(on ? 0.8 : 0, this.ctx.currentTime, 0.05); }
+  setMusic(on) { if (this.musBus) this.musBus.gain.setTargetAtTime(on ? 0.32 : 0, this.ctx.currentTime, 0.15); }
+  duckMusic(amount, time) { if (!this.musBus || !Settings.music) return; const g = this.musBus.gain, t = this.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(0.32 * amount, t); g.linearRampToValueAtTime(0.32, t + time); }
+
+  throttle(name, ms) { const n = performance.now(); if (this.last[name] && n - this.last[name] < ms) return true; this.last[name] = n; return false; }
+
+  osc(type, f0, f1, dur, vol, { t = 0, bus = this.sfxBus, filter = null, q = 1, shape = false, detune = 0 } = {}) {
+    const c = this.ctx, t0 = c.currentTime + t;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.detune.value = detune;
+    o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    let node = o;
+    if (shape) { const ws = c.createWaveShaper(); ws.curve = this.curve; node.connect(ws); node = ws; }
+    if (filter) { const f = c.createBiquadFilter(); f.type = filter; f.frequency.value = (f0 + f1) / 2; f.Q.value = q; node.connect(f); node = f; }
+    node.connect(g).connect(bus); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+
+  noise(dur, vol, { t = 0, type = 'lowpass', f0 = 3000, f1 = 120, q = 0.8, bus = this.sfxBus } = {}) {
+    const c = this.ctx, t0 = c.currentTime + t;
+    const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.noiseBuf; s.playbackRate.value = rand(0.9, 1.1);
+    f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t0); f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t0 + dur);
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f).connect(g).connect(bus); s.start(t0, rand(0, 0.4)); s.stop(t0 + dur + 0.05);
+  }
+
+  play(name) {
+    if (!this.ctx || !Settings.sfx) return;
+    switch (name) {
+      case 'shoot':
+        if (this.throttle('shoot', 55)) return;
+        this.osc('square', rand(1500, 1700), 420, 0.07, 0.045, { filter: 'bandpass', q: 2, detune: rand(-40, 40) });
+        this.noise(0.03, 0.03, { type: 'highpass', f0: 6000, f1: 3000 });
+        break;
+      case 'hit':
+        if (this.throttle('hit', 35)) return;
+        this.osc('triangle', rand(700, 900), 240, 0.06, 0.06);
+        this.noise(0.04, 0.05, { type: 'bandpass', f0: 4000, f1: 1500, q: 3 });
+        break;
+      case 'explode':
+        this.noise(0.7, 0.42, { f0: 4200, f1: 90 });
+        this.osc('sine', 140, 32, 0.55, 0.55);
+        this.osc('sawtooth', 220, 50, 0.3, 0.08, { shape: true, filter: 'lowpass' });
+        this.noise(0.25, 0.12, { t: 0.06, type: 'highpass', f0: 7000, f1: 2500 }); // debris crackle
+        this.duckMusic(0.45, 0.4);
+        break;
+      case 'hurt':
+        this.osc('sawtooth', 320, 70, 0.4, 0.22, { shape: true, filter: 'lowpass', q: 4 });
+        this.noise(0.35, 0.25, { f0: 1800, f1: 100 });
+        this.osc('sine', 90, 40, 0.4, 0.4);
+        this.duckMusic(0.3, 0.6);
+        break;
+      case 'power':
+        [523, 659, 784, 1047].forEach((f, i) => this.osc('triangle', f, f * 1.01, 0.12, 0.08, { t: i * 0.055 }));
+        break;
+      case 'launch':
+        this.noise(1.0, 0.18, { type: 'bandpass', f0: 300, f1: 5000, q: 1.2 });
+        this.osc('sawtooth', 80, 600, 0.9, 0.07, { filter: 'lowpass', q: 6 });
+        [392, 523, 784].forEach((f, i) => this.osc('square', f, f, 0.09, 0.04, { t: 0.5 + i * 0.07, filter: 'lowpass' }));
+        break;
+      case 'gameover':
+        [523, 392, 311, 196].forEach((f, i) => this.osc('sawtooth', f, f * 0.97, 0.3, 0.07, { t: i * 0.16, filter: 'lowpass', q: 3 }));
+        break;
+      case 'ui':
+        this.osc('sine', 1200, 1800, 0.06, 0.05);
+        break;
+      case 'uiBack':
+        this.osc('sine', 1000, 600, 0.08, 0.05);
+        break;
+    }
+  }
+
+  // ---- tiny synthwave sequencer (lookahead scheduled) ----
+  startMusic() {
+    if (this.seqTimer) return;
+    this.tempo = 108; this.nextTime = this.ctx.currentTime + 0.1; this.step = 0;
+    this.seqTimer = setInterval(() => this.schedule(), 25);
+  }
+  schedule() {
+    const c = this.ctx; if (!c || c.state !== 'running') return;
+    const spb = 60 / this.tempo / 4; // 16th notes
+    const roots = [45, 41, 48, 43];  // A2 F2 C3 G2
+    const arp = [0, 7, 12, 7, 3, 7, 12, 15];
+    while (this.nextTime < c.currentTime + 0.12) {
+      const s = this.step % 16, bar = Math.floor(this.step / 16) % 4, t = this.nextTime - c.currentTime;
+      const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+      // bass: driving 8ths
+      if (s % 2 === 0) this.osc('sawtooth', midi(roots[bar]), midi(roots[bar]) * 0.999, spb * 1.7, 0.16, { t, bus: this.musBus, filter: 'lowpass', q: 7 });
+      // arpeggio
+      const note = roots[bar] + 24 + arp[s % 8];
+      this.osc('square', midi(note), midi(note), spb * 0.9, 0.035, { t, bus: this.musBus, filter: 'lowpass', q: 2 });
+      // kick
+      if (s % 4 === 0) this.osc('sine', 150, 40, 0.22, 0.5, { t, bus: this.musBus });
+      // snare
+      if (s === 4 || s === 12) this.noise(0.16, 0.16, { t, bus: this.musBus, type: 'bandpass', f0: 2200, f1: 900, q: 0.7 });
+      // hats
+      if (s % 2 === 1) this.noise(0.035, 0.05, { t, bus: this.musBus, type: 'highpass', f0: 9000, f1: 7000 });
+      this.nextTime += spb; this.step++;
+    }
+  }
+}
+
+/* =====================================================================
+   3. VIEW — DPR-aware canvas, world fit, coordinate conversion
+   ===================================================================== */
+class View {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { alpha: false });
+    this.resize = this.resize.bind(this);
+    window.addEventListener('resize', this.resize);
+    this.resize();
+  }
+  resize() {
+    const cw = window.innerWidth, ch = window.innerHeight;
+    this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.DPR_MAX);
+    this.canvas.width = Math.round(cw * this.dpr);
+    this.canvas.height = Math.round(ch * this.dpr);
+    this.cssW = cw; this.cssH = ch;
+    this.scale = Math.min(cw / CONFIG.FIELD_W, ch / CONFIG.FIELD_H);  // CSS px per world unit
+    this.W = cw / this.scale;  // visible world width (x spans -W/2..W/2)
+    this.H = ch / this.scale;  // visible world height (y spans 0..H)
+    this.horizon = this.H * CONFIG.HORIZON;
+    this.halfField = CONFIG.FIELD_W / 2;
+  }
+  toWorldX(clientX) { return (clientX - this.cssW / 2) / this.scale; }
+  toWorldY(clientY) { return clientY / this.scale; }
+  begin() { // world transform: origin at top-center
+    const k = this.dpr * this.scale;
+    this.ctx.setTransform(k, 0, 0, k, this.canvas.width / 2, 0);
+  }
+}
+
+/* =====================================================================
+   4. INPUT — keyboard + unified pointer (mouse/touch/pen) drag
+   ===================================================================== */
+class Input {
+  constructor(view) {
+    this.view = view;
+    this.keys = new Set();
+    this.pressed = new Set();     // edge-triggered this frame
+    this.pointer = { active: false, id: null, x: 0, y: 0, startX: 0, startY: 0, downStamp: 0 };
+    addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      if (!this.keys.has(k)) this.pressed.add(k);
+      this.keys.add(k);
+      if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', ' '].includes(k)) e.preventDefault();
+    });
+    addEventListener('keyup', e => this.keys.delete(e.key.toLowerCase()));
+    addEventListener('blur', () => { this.keys.clear(); this.pointer.active = false; });
+    const canvas = view.canvas;
+    canvas.addEventListener('pointerdown', e => {
+      if (this.pointer.active) return;
+      canvas.setPointerCapture?.(e.pointerId);
+      const p = this.pointer;
+      p.active = true; p.id = e.pointerId; p.downStamp++;
+      p.x = p.startX = view.toWorldX(e.clientX);
+      p.y = p.startY = view.toWorldY(e.clientY);
+    });
+    canvas.addEventListener('pointermove', e => {
+      const p = this.pointer; if (!p.active || e.pointerId !== p.id) return;
+      p.x = view.toWorldX(e.clientX); p.y = view.toWorldY(e.clientY);
+    });
+    const up = e => { if (e.pointerId === this.pointer.id) { this.pointer.active = false; this.pointer.id = null; } };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  }
+  axisX() { return (this.keys.has('arrowright') || this.keys.has('d') ? 1 : 0) - (this.keys.has('arrowleft') || this.keys.has('a') ? 1 : 0); }
+  wasPressed(k) { return this.pressed.has(k); }
+  endFrame() { this.pressed.clear(); }
+}
+
+/* =====================================================================
+   5. CAMERA — lerped follow, trauma-based shake, hitstop requests
+   ===================================================================== */
+class Camera {
+  constructor() { this.x = 0; this.y = 0; this.tx = 0; this.ty = 0; this.trauma = 0; this.ox = 0; this.oy = 0; this.rot = 0; this.t = 0; }
+  addTrauma(a) { this.trauma = clamp(this.trauma + a, 0, 1); }
+  update(dt) {
+    this.t += dt;
+    this.x = damp(this.x, this.tx, 5, dt);
+    this.y = damp(this.y, this.ty, 5, dt);
+    this.trauma = Math.max(0, this.trauma - dt * 1.4);
+    const s = this.trauma * this.trauma; // quadratic falloff feels punchier
+    // layered sines = smooth pseudo-noise (no jitter at high refresh rates)
+    this.ox = s * 16 * (Math.sin(this.t * 71.3) * 0.6 + Math.sin(this.t * 133.7) * 0.4);
+    this.oy = s * 16 * (Math.sin(this.t * 89.1 + 1.7) * 0.6 + Math.sin(this.t * 151.9) * 0.4);
+    this.rot = s * 0.035 * Math.sin(this.t * 63.1 + 0.5);
+  }
+  apply(ctx, view) {
+    ctx.translate(this.ox, this.oy + view.H * 0.5);
+    ctx.rotate(this.rot);
+    ctx.translate(-this.x, -this.y - view.H * 0.5);
+  }
+}
+
+/* =====================================================================
+   6. GLOW SPRITE CACHE — shadowBlur baked once, blitted many times
+   ===================================================================== */
+const GlowCache = {
+  map: new Map(),
+  dot(color) { // soft radial bloom, white-hot core
+    const key = 'dot' + color; if (this.map.has(key)) return this.map.get(key);
+    const s = 64, c = document.createElement('canvas'); c.width = c.height = s;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, hexA(color, 1)); gr.addColorStop(0.45, hexA(color, 0.35)); gr.addColorStop(1, hexA(color, 0));
+    g.fillStyle = gr; g.fillRect(0, 0, s, s);
+    this.map.set(key, c); return c;
+  },
+  bolt(color) { // elongated plasma round
+    const key = 'bolt' + color; if (this.map.has(key)) return this.map.get(key);
+    const w = 32, h = 80, c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.shadowBlur = 16; g.shadowColor = color;
+    const gr = g.createLinearGradient(0, 8, 0, h - 8);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, color); gr.addColorStop(1, hexA(color, 0));
+    g.fillStyle = gr;
+    g.beginPath(); g.ellipse(w / 2, h / 2, 4.5, h / 2 - 12, 0, 0, TAU); g.fill();
+    g.fill(); // second pass intensifies the baked glow
+    this.map.set(key, c); return c;
+  },
+};
+
+/* =====================================================================
+   7. SPRITE ANIMATOR — drop-in sprite-sheet support for any entity
+   ===================================================================== */
+class SpriteAnimator {
+  constructor({ src = null, frameWidth = 64, frameHeight = 64, frameCount = 1, frameSpeed = 10, row = 0, scale = 1 } = {}) {
+    Object.assign(this, { frameWidth, frameHeight, frameCount, frameSpeed, row, scale });
+    this.frame = 0; this.time = 0; this.ready = false; this.image = null;
+    if (src) { this.image = new Image(); this.image.onload = () => { this.ready = true; }; this.image.src = src; }
+  }
+  update(dt) { this.time += dt; this.frame = Math.floor(this.time * this.frameSpeed) % this.frameCount; }
+  draw(ctx, x, y, rotation = 0, sx = 1) {
+    const w = this.frameWidth * this.scale, h = this.frameHeight * this.scale;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rotation); ctx.scale(sx, 1);
+    ctx.drawImage(this.image, this.frame * this.frameWidth, this.row * this.frameHeight, this.frameWidth, this.frameHeight, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   8. ENTITY BASE
+   ===================================================================== */
+class Entity {
+  constructor({ x = 0, y = 0, radius = 16, sprite = null } = {}) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0; this.radius = radius; this.rotation = 0; this.dead = false;
+    this.sprite = sprite ? new SpriteAnimator(sprite) : null;
+  }
+  update(dt) { if (this.sprite) this.sprite.update(dt); }
+  render(ctx, t) {
+    if (this.sprite && this.sprite.ready) this.sprite.draw(ctx, this.x, this.y, this.rotation);
+    else this.drawVector(ctx, t);
+  }
+  drawVector() {}
+  hits(o, pad = 0) { const dx = o.x - this.x, dy = o.y - this.y, r = this.radius + o.radius + pad; return dx * dx + dy * dy < r * r; }
+}
+
+/* =====================================================================
+   9. PARTICLES — fixed ring-buffer pool, additive glow + spark streaks
+   ===================================================================== */
+class ParticleSystem {
+  constructor(cap) {
+    this.cap = cap; this.cursor = 0; this.live = 0;
+    this.pool = Array.from({ length: cap }, () => ({ life: 0, max: 1, x: 0, y: 0, vx: 0, vy: 0, s0: 1, s1: 0, drag: 0, grav: 0, kind: 0, img: null, color: '#fff' }));
+  }
+  spawn(o) {
+    const p = this.pool[this.cursor]; this.cursor = (this.cursor + 1) % this.cap;
+    p.x = o.x; p.y = o.y; p.vx = o.vx || 0; p.vy = o.vy || 0;
+    p.max = p.life = o.life || 0.5; p.s0 = o.size || 6; p.s1 = o.sizeEnd ?? 0;
+    p.drag = o.drag ?? 3; p.grav = o.grav || 0; p.kind = o.kind || 0;
+    p.color = o.color || PALETTE.cyan; p.img = p.kind === 0 ? GlowCache.dot(p.color) : null;
+  }
+  burst(x, y, { n = 30, speed = [80, 380], life = [0.35, 0.85], size = [5, 13], colors = [PALETTE.cyan], drag = 3.2, grav = 0, sparks = 0, angle = null, spread = TAU } = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = angle === null ? rand(0, TAU) : angle + rand(-spread / 2, spread / 2);
+      const v = rand(speed[0], speed[1]);
+      this.spawn({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(life[0], life[1]), size: rand(size[0], size[1]), color: pick(colors), drag, grav });
+    }
+    for (let i = 0; i < sparks; i++) {
+      const a = angle === null ? rand(0, TAU) : angle + rand(-spread / 2, spread / 2);
+      const v = rand(speed[1] * 0.8, speed[1] * 1.8);
+      this.spawn({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.2, 0.5), size: rand(1.6, 3), color: pick(colors), drag: 4.5, grav: 220, kind: 1 });
+    }
+  }
+  update(dt) {
+    let live = 0;
+    for (const p of this.pool) {
+      if (p.life <= 0) continue;
+      p.life -= dt; live++;
+      const k = Math.exp(-p.drag * dt);
+      p.vx *= k; p.vy = p.vy * k + p.grav * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+    }
+    this.live = live;
+  }
+  render(ctx) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of this.pool) {
+      if (p.life <= 0) continue;
+      const k = p.life / p.max;
+      if (p.kind === 0) {
+        const s = lerp(p.s1, p.s0, k) * 2.2;
+        ctx.globalAlpha = Math.pow(k, 1.15);
+        ctx.drawImage(p.img, p.x - s, p.y - s, s * 2, s * 2);
+      } else {
+        ctx.globalAlpha = k;
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.s0 * k + 0.4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.035, p.y - p.vy * 0.035); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   10. BACKDROP — synthwave sky, sliced sun, perspective neon grid
+   ===================================================================== */
+class Backdrop {
+  constructor() {
+    this.scroll = 0;
+    this.stars = Array.from({ length: 90 }, () => ({ x: rand(-1, 1), y: rand(0, 1), s: rand(0.4, 1.6), p: rand(0, TAU) }));
+    this.sun = this.bakeSun();
+  }
+  bakeSun() {
+    const r = 120, pad = 40, c = document.createElement('canvas'); c.width = c.height = (r + pad) * 2;
+    const g = c.getContext('2d'), cx = r + pad;
+    g.shadowBlur = 40; g.shadowColor = PALETTE.magenta;
+    const gr = g.createLinearGradient(0, pad, 0, pad + 2 * r);
+    gr.addColorStop(0, '#fff6b0'); gr.addColorStop(0.35, PALETTE.amber); gr.addColorStop(0.7, PALETTE.magenta); gr.addColorStop(1, PALETTE.violet);
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cx, r, 0, TAU); g.fill();
+    g.shadowBlur = 0; g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 7; i++) { const y = cx + 8 + i * i * 2.6 + i * 6; g.fillRect(0, y, c.width, 2 + i * 1.3); }
+    return c;
+  }
+  update(dt, speed) { this.scroll += speed * dt; }
+  render(ctx, view, cam, t) {
+    const W = view.W + 80, H = view.H, hz = view.horizon, x0 = -W / 2;
+    const px = cam.x * 0.25; // parallax for distant layers
+    // sky
+    const sky = ctx.createLinearGradient(0, 0, 0, hz);
+    sky.addColorStop(0, '#05030d'); sky.addColorStop(0.55, '#1a0636'); sky.addColorStop(1, '#4b0c5e');
+    ctx.fillStyle = sky; ctx.fillRect(x0, -40, W, hz + 41);
+    // stars
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const dot = GlowCache.dot('#b9c9ff');
+    for (const s of this.stars) {
+      const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 2 + s.p));
+      ctx.globalAlpha = a * (1 - s.y * 0.8);
+      const sx = s.x * W / 2 - px * 0.3, sy = s.y * hz * 0.92, r = s.s * 3;
+      ctx.drawImage(dot, sx - r, sy - r, r * 2, r * 2);
+    }
+    ctx.restore();
+    // sun (screen blend so it lifts the sky)
+    ctx.save(); ctx.globalCompositeOperation = 'screen';
+    const sunS = this.sun.width, bob = Math.sin(t * 0.4) * 3;
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(this.sun, -px - sunS / 2, hz - sunS * 0.62 + bob, sunS, sunS);
+    ctx.restore();
+    // floor
+    const floor = ctx.createLinearGradient(0, hz, 0, H);
+    floor.addColorStop(0, '#1d0533'); floor.addColorStop(0.35, '#0d0320'); floor.addColorStop(1, '#05010c');
+    ctx.fillStyle = floor; ctx.fillRect(x0, hz, W, H - hz + 40);
+    // horizon haze
+    const haze = ctx.createLinearGradient(0, hz - 26, 0, hz + 50);
+    haze.addColorStop(0, hexA(PALETTE.magenta, 0)); haze.addColorStop(0.4, hexA(PALETTE.magenta, 0.55)); haze.addColorStop(1, hexA(PALETTE.violet, 0));
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = haze; ctx.fillRect(x0, hz - 26, W, 76); ctx.restore();
+    // grid
+    this.drawGrid(ctx, view, cam, t);
+  }
+  drawGrid(ctx, view, cam, t) {
+    const H = view.H, hz = view.horizon, vpX = -cam.x * 0.35, depth = H - hz;
+    const hue = (Math.sin(t * 0.25) * 0.5 + 0.5);
+    const colA = hue > 0.5 ? PALETTE.magenta : PALETTE.violet;
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineCap = 'round';
+    const pass = (lw, alphaMul) => {
+      ctx.lineWidth = lw;
+      // converging verticals
+      const N = 14, spacing = 70;
+      for (let i = -N; i <= N; i++) {
+        const xb = vpX + i * spacing * 2.6 - cam.x * 0.9;
+        const a = 0.55 * (1 - Math.abs(i) / (N + 2));
+        const g = ctx.createLinearGradient(0, hz, 0, H);
+        g.addColorStop(0, hexA(colA, 0)); g.addColorStop(1, hexA(PALETTE.cyan, a * alphaMul));
+        ctx.strokeStyle = g;
+        ctx.beginPath(); ctx.moveTo(vpX + i * 6, hz); ctx.lineTo(xb, H + 20); ctx.stroke();
+      }
+      // perspective horizontals (scrolling toward the player)
+      const R = 16, phase = (this.scroll / 90) % 1;
+      for (let i = 0; i < R; i++) {
+        const k = (i + phase) / R;
+        const y = hz + depth * Math.pow(k, 2.3);
+        ctx.strokeStyle = hexA(k > 0.5 ? PALETTE.cyan : colA, (0.08 + 0.75 * k) * alphaMul);
+        ctx.beginPath(); ctx.moveTo(-view.W, y); ctx.lineTo(view.W, y); ctx.stroke();
+      }
+    };
+    pass(5, 0.18);   // wide, faint = bloom
+    pass(1.3, 0.85); // thin, bright = filament
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   11. PLAYER
+   ===================================================================== */
+class Player extends Entity {
+  constructor(game) {
+    super({ radius: 18, sprite: SPRITES.player });
+    this.game = game;
+    this.reset();
+  }
+  reset() {
+    const v = this.game.view;
+    this.x = 0; this.tx = 0; this.baseY = v.H * 0.8; this.y = v.H + 80;
+    this.vx = 0; this.bank = 0; this.power = 10; this.fireRate = 7.5; this.fireT = 0.4;
+    this.invuln = 0; this.trailT = 0; this.dragStamp = -1; this.dragOrigin = 0; this.squash = 0;
+  }
+  get guns() { return this.power >= 40 ? 4 : this.power >= 25 ? 3 : this.power >= 15 ? 2 : 1; }
+
+  update(dt, input) {
+    super.update(dt);
+    const v = this.game.view, lim = v.halfField - 34;
+    // --- steering intent ---
+    const ax = input.axisX();
+    if (ax) this.tx += ax * 560 * dt;
+    const p = input.pointer;
+    if (p.active) {
+      if (this.dragStamp !== p.downStamp) { this.dragStamp = p.downStamp; this.dragOrigin = this.tx; }
+      this.tx = this.dragOrigin + (p.x - p.startX) * 1.2;
+    }
+    this.tx = clamp(this.tx, -lim, lim);
+    if (p.active) this.dragOrigin += 0; // origin stays anchored so the plane never snaps to the finger
+    // --- smoothed motion ---
+    const prevX = this.x;
+    this.x = damp(this.x, this.tx, 13, dt);
+    this.vx = (this.x - prevX) / dt;
+    this.bank = damp(this.bank, clamp(this.vx / 650, -1, 1), 9, dt);
+    this.baseY = v.H * 0.8;
+    this.y = damp(this.y, this.baseY + Math.sin(this.game.time * 2.2) * 4, 6, dt);
+    this.squash = damp(this.squash, 0, 10, dt);
+    // --- weapons ---
+    this.fireT -= dt;
+    if (this.fireT <= 0) { this.fire(); this.fireT += 1 / this.fireRate; }
+    // --- engine trail ---
+    this.trailT -= dt;
+    while (this.trailT <= 0) {
+      this.trailT += 1 / 90;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      this.game.particles.spawn({ x: this.x + side * 5 + rand(-2, 2), y: this.y + 30, vx: rand(-20, 20) - this.vx * 0.15, vy: rand(260, 360), life: rand(0.18, 0.32), size: rand(4, 7), sizeEnd: 0.5, color: Math.random() < 0.6 ? PALETTE.cyan : PALETTE.violet, drag: 2 });
+    }
+    if (this.invuln > 0) this.invuln -= dt;
+  }
+
+  fire() {
+    const g = this.game, n = this.guns, gap = 13;
+    for (let i = 0; i < n; i++) {
+      const off = (i - (n - 1) / 2) * gap;
+      g.spawnBullet(this.x + off, this.y - 34, off * 0.9, -980);
+    }
+    // muzzle flash
+    g.particles.burst(this.x, this.y - 38, { n: 3, speed: [40, 120], life: [0.06, 0.12], size: [6, 10], colors: [PALETTE.white, PALETTE.cyan], angle: -Math.PI / 2, spread: 1.2 });
+    this.squash = 0.06;
+    g.audio.play('shoot');
+  }
+
+  hurt(dmg) {
+    if (this.invuln > 0) return false;
+    this.invuln = 1.1;
+    this.power = Math.max(0, this.power - dmg);
+    return true;
+  }
+
+  drawVector(ctx, t) {
+    const flicker = this.invuln > 0 && Math.floor(this.invuln * 20) % 2 === 0;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.bank * 0.2);
+    ctx.scale(1 - Math.abs(this.bank) * 0.3, 1 + this.squash);
+    if (flicker) ctx.globalAlpha = 0.35;
+
+    // --- thruster plume (additive) ---
+    ctx.globalCompositeOperation = 'lighter';
+    const fl = 30 + Math.sin(t * 57) * 5 + Math.sin(t * 91) * 3;
+    const plume = ctx.createRadialGradient(0, 26, 1, 0, 26 + fl * 0.45, fl);
+    plume.addColorStop(0, 'rgba(255,255,255,0.95)');
+    plume.addColorStop(0.25, hexA(PALETTE.cyan, 0.85));
+    plume.addColorStop(0.6, hexA(PALETTE.violet, 0.35));
+    plume.addColorStop(1, hexA(PALETTE.violet, 0));
+    ctx.fillStyle = plume;
+    ctx.beginPath(); ctx.ellipse(0, 26 + fl * 0.45, 9, fl, 0, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // --- hull: time-shifting gradient, heavy glow ---
+    const shift = Math.sin(t * 1.4) * 14;
+    const hull = ctx.createLinearGradient(-38, -36 + shift, 38, 30 - shift);
+    const h1 = 188 + Math.sin(t * 0.9) * 12, h2 = 300 + Math.sin(t * 1.1 + 1) * 18;
+    hull.addColorStop(0, `hsl(${h1},100%,62%)`);
+    hull.addColorStop(0.5, `hsl(${(h1 + h2) / 2},85%,34%)`);
+    hull.addColorStop(1, `hsl(${h2},100%,58%)`);
+    const shape = () => {
+      ctx.beginPath();
+      ctx.moveTo(0, -40);
+      ctx.lineTo(7, -20); ctx.lineTo(10, -6);
+      ctx.lineTo(38, 14); ctx.lineTo(36, 23);
+      ctx.lineTo(12, 17); ctx.lineTo(9, 28);
+      ctx.lineTo(-9, 28); ctx.lineTo(-12, 17);
+      ctx.lineTo(-36, 23); ctx.lineTo(-38, 14);
+      ctx.lineTo(-10, -6); ctx.lineTo(-7, -20);
+      ctx.closePath();
+    };
+    ctx.shadowBlur = 22; ctx.shadowColor = hexA(PALETTE.cyan, 0.9);
+    shape(); ctx.fillStyle = hull; ctx.fill();
+    // edge filament (screen blend for a hot rim)
+    ctx.globalCompositeOperation = 'screen';
+    ctx.shadowBlur = 16; ctx.shadowColor = PALETTE.magenta;
+    const rim = ctx.createLinearGradient(0, -40, 0, 28);
+    rim.addColorStop(0, '#ffffff'); rim.addColorStop(1, PALETTE.magenta);
+    ctx.lineWidth = 1.8; ctx.lineJoin = 'round'; ctx.strokeStyle = rim; shape(); ctx.stroke();
+    // panel lines
+    ctx.shadowBlur = 0; ctx.globalAlpha *= 0.55; ctx.strokeStyle = hexA(PALETTE.cyan, 0.9); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-28, 15); ctx.lineTo(-9, 2); ctx.moveTo(28, 15); ctx.lineTo(9, 2); ctx.stroke();
+    ctx.globalAlpha = flicker ? 0.35 : 1;
+    // canopy
+    ctx.globalCompositeOperation = 'source-over';
+    const can = ctx.createRadialGradient(-2, -18, 1, 0, -14, 10);
+    can.addColorStop(0, '#ffffff'); can.addColorStop(0.35, '#ffb3f2'); can.addColorStop(1, hexA(PALETTE.violet, 0.9));
+    ctx.shadowBlur = 18; ctx.shadowColor = PALETTE.magenta;
+    ctx.fillStyle = can; ctx.beginPath(); ctx.ellipse(0, -13, 4.6, 10, 0, 0, TAU); ctx.fill();
+    // wingtip strobes
+    ctx.globalCompositeOperation = 'lighter';
+    const blink = (Math.sin(t * 9) > 0.6) ? 1 : 0.25;
+    for (const [sx, col] of [[-37, PALETTE.danger], [37, PALETTE.lime]]) {
+      const img = GlowCache.dot(col), r = 9 * blink + 3;
+      ctx.drawImage(img, sx - r, 18 - r, r * 2, r * 2);
+    }
+    ctx.restore();
+
+    // power readout under the plane
+    ctx.save();
+    ctx.font = '18px "Russo One", "Arial Black", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.shadowBlur = 15; ctx.shadowColor = PALETTE.amber; ctx.fillStyle = '#fff2d6';
+    ctx.fillText(String(this.power), this.x, this.y + 40);
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   12. PRACTICE DRONES (phase-1 targets that exercise the juice systems)
+   ===================================================================== */
+class Drone extends Entity {
+  constructor(game, x, y, hp) {
+    super({ x, y, radius: 22, sprite: SPRITES.drone });
+    this.game = game; this.hp = this.max = hp;
+    this.vy = rand(80, 125); this.spin = rand(-1.5, 1.5);
+    this.hue = pick([300, 190, 40, 265]); this.flash = 0; this.wander = x; this.wanderT = 0; this.depth = 0.3; this.hpShown = 1;
+  }
+  update(dt) {
+    super.update(dt);
+    const v = this.game.view;
+    this.wanderT -= dt;
+    if (this.wanderT <= 0) { this.wanderT = rand(0.8, 1.8); this.wander = clamp(this.x + rand(-120, 120), -v.halfField + 30, v.halfField - 30); }
+    this.vx = damp(this.vx, (this.wander - this.x) * 1.4, 2.5, dt);  // lerped steering
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.rotation += this.spin * dt;
+    this.depth = lerp(0.3, 1, smooth(v.horizon, v.horizon + v.H * 0.4, this.y)); // grow out of the horizon
+    this.radius = 22 * this.depth;
+    this.flash = Math.max(0, this.flash - dt * 8);
+    this.hpShown = damp(this.hpShown, this.hp / this.max, 12, dt);
+    if (this.y > v.H + 60) this.dead = true;
+  }
+  drawVector(ctx, t) {
+    const s = this.depth, r = 22;
+    ctx.save(); ctx.translate(this.x, this.y); ctx.scale(s, s);
+    const hue = this.hue + Math.sin(t * 2 + this.x * 0.01) * 20;
+    // body
+    ctx.rotate(this.rotation);
+    const body = ctx.createRadialGradient(-6, -6, 2, 0, 0, r);
+    body.addColorStop(0, `hsl(${hue},100%,${82 + this.flash * 18}%)`);
+    body.addColorStop(0.45, `hsl(${hue},95%,45%)`);
+    body.addColorStop(1, `hsl(${hue + 40},90%,14%)`);
+    ctx.shadowBlur = 20; ctx.shadowColor = `hsl(${hue},100%,60%)`;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.closePath(); ctx.fillStyle = body; ctx.fill();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineWidth = 2; ctx.strokeStyle = `hsl(${hue},100%,75%)`; ctx.stroke();
+    // inner core
+    ctx.rotate(-this.rotation * 2.2);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = `hsla(${hue + 30},100%,80%,.8)`;
+    ctx.beginPath(); for (let i = 0; i < 3; i++) { const a = i / 3 * TAU; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5); } ctx.closePath(); ctx.stroke();
+    ctx.globalCompositeOperation = 'lighter';
+    const core = GlowCache.dot(PALETTE.white), cr = 8 + Math.sin(t * 8) * 2 + this.flash * 8;
+    ctx.globalAlpha = 0.9; ctx.drawImage(core, -cr, -cr, cr * 2, cr * 2);
+    ctx.restore();
+    // hp arc (lerped)
+    if (this.hp < this.max) {
+      ctx.save(); ctx.translate(this.x, this.y); ctx.scale(s, s);
+      ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.shadowBlur = 12; ctx.shadowColor = PALETTE.amber; ctx.strokeStyle = PALETTE.amber;
+      ctx.beginPath(); ctx.arc(0, 0, r + 8, -Math.PI / 2, -Math.PI / 2 + TAU * this.hpShown); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+/* =====================================================================
+   13. GAME — state machine, fixed-step loop, hitstop, systems glue
+   ===================================================================== */
+class Game {
+  constructor() {
+    this.view = new View(document.getElementById('stage'));
+    this.input = new Input(this.view);
+    this.audio = new AudioEngine();
+    this.camera = new Camera();
+    this.particles = new ParticleSystem(CONFIG.PARTICLE_CAP);
+    this.backdrop = new Backdrop();
+    this.bullets = [];
+    this.drones = [];
+    this.waves = [];   // shockwave rings
+    this.texts = [];   // floating combat text
+    this.state = 'menu';
+    this.time = 0; this.acc = 0; this.last = performance.now(); this.hitstop = 0;
+    this.score = 0; this.shownScore = 0; this.kills = 0; this.spawnT = 1.5;
+    this.player = new Player(this);
+    this.fps = { on: false, frames: 0, t: 0 };
+    this.dom = {
+      hud: document.getElementById('hud'), score: document.getElementById('scoreV'), power: document.getElementById('powerV'),
+      menu: document.getElementById('menu'), pause: document.getElementById('pause'), over: document.getElementById('over'),
+      flash: document.getElementById('flash'), fps: document.getElementById('fps'),
+    };
+    this.bindUI();
+    this.loop = this.loop.bind(this);
+    requestAnimationFrame(this.loop);
+  }
+
+  // ---------- UI wiring ----------
+  bindUI() {
+    const $ = id => document.getElementById(id);
+    const click = (id, fn) => $(id).addEventListener('click', e => { e.stopPropagation(); fn(); });
+    click('startBtn', () => this.start());
+    click('retryBtn', () => this.start());
+    click('resumeBtn', () => this.resume());
+    click('restartBtn', () => this.start());
+    click('pauseBtn', () => this.pause());
+    const syncToggles = () => {
+      for (const id of ['sfxTog', 'sfxTog2']) $(id).setAttribute('aria-pressed', Settings.sfx);
+      for (const id of ['musTog', 'musTog2']) $(id).setAttribute('aria-pressed', Settings.music);
+    };
+    const toggle = key => () => {
+      this.audio.init();
+      Settings[key] = !Settings[key]; Settings.save(); syncToggles();
+      key === 'sfx' ? this.audio.setSfx(Settings.sfx) : this.audio.setMusic(Settings.music);
+      this.audio.play(Settings[key] ? 'ui' : 'uiBack');
+    };
+    ['sfxTog', 'sfxTog2'].forEach(id => click(id, toggle('sfx')));
+    ['musTog', 'musTog2'].forEach(id => click(id, toggle('music')));
+    syncToggles();
+    document.querySelectorAll('.btn').forEach(b => b.addEventListener('pointerenter', () => this.audio.play('ui')));
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.pause(); });
+  }
+  show(el, on) { el.classList.toggle('show', on); }
+
+  // ---------- state transitions ----------
+  start() {
+    this.audio.init(); this.audio.play('launch');
+    this.bullets.length = 0; this.drones.length = 0; this.waves.length = 0; this.texts.length = 0;
+    this.player.reset();
+    this.score = 0; this.shownScore = 0; this.kills = 0; this.spawnT = 1.2;
+    this.state = 'play';
+    this.show(this.dom.menu, false); this.show(this.dom.over, false); this.show(this.dom.pause, false);
+    this.dom.hud.classList.add('live');
+    this.camera.addTrauma(0.3);
+  }
+  pause() { if (this.state !== 'play') return; this.state = 'pause'; this.show(this.dom.pause, true); this.audio.play('uiBack'); }
+  resume() { if (this.state !== 'pause') return; this.state = 'play'; this.show(this.dom.pause, false); this.last = performance.now(); this.audio.play('ui'); }
+  gameOver() {
+    this.state = 'over';
+    this.audio.play('gameover');
+    document.getElementById('finalScore').textContent = Math.round(this.score).toLocaleString();
+    document.getElementById('overSub').textContent = `Drones destroyed: ${this.kills}`;
+    setTimeout(() => this.show(this.dom.over, true), 700);
+  }
+
+  // ---------- juice helpers ----------
+  impact({ trauma = 0.3, stop = CONFIG.HITSTOP_FRAMES } = {}) { this.camera.addTrauma(trauma); this.hitstop = Math.max(this.hitstop, stop); }
+  shockwave(x, y, color, max = 90) { this.waves.push({ x, y, r: 4, max, life: 0.45, t: 0.45, color }); }
+  floatText(x, y, text, color) { this.texts.push({ x, y, ty: y - 60, text, color, life: 0.9, max: 0.9 }); }
+  spawnBullet(x, y, vx, vy) { this.bullets.push({ x, y, vx, vy, radius: 6, dead: false }); }
+
+  // ---------- simulation ----------
+  update(dt) {
+    this.time += dt;
+    const playing = this.state === 'play';
+    this.backdrop.update(dt, playing ? 320 : 140);
+    this.camera.tx = this.player.x * 0.35;  // gentle lerped follow
+    this.camera.update(dt);
+
+    if (playing || this.state === 'over') {
+      if (playing) this.player.update(dt, this.input);
+      // spawn practice drones
+      if (playing) {
+        this.spawnT -= dt;
+        if (this.spawnT <= 0) {
+          this.spawnT = Math.max(0.45, 1.25 - this.time * 0.004);
+          const v = this.view;
+          this.drones.push(new Drone(this, rand(-v.halfField + 40, v.halfField - 40), v.horizon - 10, Math.round(30 + this.kills * 1.5)));
+        }
+      }
+      // bullets
+      for (const b of this.bullets) {
+        b.x += b.vx * dt; b.y += b.vy * dt;
+        if (b.y < this.view.horizon - 30) b.dead = true;
+      }
+      // drones + collisions
+      const dmg = 8 + this.player.power * 0.4;
+      for (const d of this.drones) {
+        d.update(dt);
+        for (const b of this.bullets) {
+          if (b.dead || !d.hits(b)) continue;
+          b.dead = true; d.hp -= dmg; d.flash = 1;
+          this.particles.burst(b.x, b.y, { n: 4, speed: [60, 200], life: [0.1, 0.25], size: [3, 6], colors: [PALETTE.white, PALETTE.cyan], sparks: 3, angle: Math.PI / 2, spread: 2.2 });
+          this.audio.play('hit');
+          if (d.hp <= 0) { this.killDrone(d); break; }
+        }
+        if (playing && !d.dead && d.hits(this.player, -4)) this.ram(d);
+      }
+      this.bullets = this.bullets.filter(b => !b.dead);
+      this.drones = this.drones.filter(d => !d.dead);
+    }
+    // fx
+    this.particles.update(dt);
+    for (const w of this.waves) { w.t -= dt; w.r = lerp(w.max, 4, Math.pow(w.t / w.life, 2)); }
+    this.waves = this.waves.filter(w => w.t > 0);
+    for (const f of this.texts) { f.life -= dt; f.y = damp(f.y, f.ty, 6, dt); }
+    this.texts = this.texts.filter(f => f.life > 0);
+    // HUD number lerp
+    this.shownScore = damp(this.shownScore, this.score, 10, dt);
+  }
+
+  killDrone(d) {
+    d.dead = true; this.kills++;
+    const col = `hsl(${d.hue},100%,60%)`;
+    const hex = d.hue > 280 ? PALETTE.magenta : d.hue > 200 ? PALETTE.violet : d.hue > 100 ? PALETTE.cyan : PALETTE.amber;
+    this.particles.burst(d.x, d.y, { n: 46, speed: [90, 420], life: [0.35, 0.9], size: [5, 14], colors: [hex, PALETTE.white, PALETTE.amber], sparks: 18 });
+    this.particles.burst(d.x, d.y, { n: 10, speed: [10, 60], life: [0.5, 0.9], size: [14, 26], colors: [hex], drag: 2 }); // lingering bloom
+    this.shockwave(d.x, d.y, hex, 80 * d.depth + 30);
+    const pts = 100;
+    this.score += pts;
+    this.player.power += 1;
+    this.floatText(d.x, d.y - 10, `+${pts}`, PALETTE.amber);
+    this.impact({ trauma: 0.28 });
+    this.audio.play('explode');
+    if (this.player.power % 5 === 0) { this.audio.play('power'); this.floatText(this.player.x, this.player.y - 50, 'POWER UP', PALETTE.cyan); }
+  }
+
+  ram(d) {
+    if (!this.player.hurt(4)) return;
+    d.dead = true;
+    this.particles.burst(d.x, d.y, { n: 40, speed: [100, 460], colors: [PALETTE.danger, PALETTE.amber, PALETTE.white], sparks: 20 });
+    this.shockwave(this.player.x, this.player.y, PALETTE.danger, 130);
+    this.floatText(this.player.x, this.player.y - 40, '-4', PALETTE.danger);
+    this.impact({ trauma: 0.7, stop: CONFIG.HITSTOP_FRAMES + 2 });
+    this.audio.play('hurt');
+    this.dom.flash.style.opacity = 1; setTimeout(() => { this.dom.flash.style.opacity = 0; }, 140);
+    if (this.player.power <= 0) {
+      this.particles.burst(this.player.x, this.player.y, { n: 120, speed: [120, 620], life: [0.5, 1.3], size: [6, 18], colors: [PALETTE.cyan, PALETTE.magenta, PALETTE.white, PALETTE.amber], sparks: 40 });
+      this.shockwave(this.player.x, this.player.y, PALETTE.cyan, 260);
+      this.impact({ trauma: 1, stop: 8 });
+      this.audio.play('explode');
+      this.player.y = this.view.H + 400;
+      this.gameOver();
+    }
+  }
+
+  // ---------- rendering ----------
+  render() {
+    const { ctx } = this.view, v = this.view, t = this.time;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#07040f'; ctx.fillRect(0, 0, v.canvas.width, v.canvas.height);
+    v.begin();
+    ctx.save();
+    this.camera.apply(ctx, v);
+    this.backdrop.render(ctx, v, this.camera, t);
+
+    // play-field rails
+    ctx.save(); ctx.globalCompositeOperation = 'screen';
+    for (const side of [-1, 1]) {
+      const x = side * (v.halfField + 4);
+      const g = ctx.createLinearGradient(0, v.horizon, 0, v.H);
+      g.addColorStop(0, hexA(PALETTE.cyan, 0)); g.addColorStop(1, hexA(PALETTE.cyan, 0.5));
+      ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.shadowBlur = 15; ctx.shadowColor = PALETTE.cyan;
+      ctx.beginPath(); ctx.moveTo(x * 0.25 - this.camera.x * 0.35, v.horizon); ctx.lineTo(x, v.H + 20); ctx.stroke();
+    }
+    ctx.restore();
+
+    for (const d of this.drones) d.render(ctx, t);
+
+    // bullets (baked glow sprite, additive)
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const bolt = GlowCache.bolt(PALETTE.cyan);
+    for (const b of this.bullets) {
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vx, -b.vy));
+      ctx.drawImage(bolt, -bolt.width / 2 * 0.7, -bolt.height / 2 * 0.7, bolt.width * 0.7, bolt.height * 0.7);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    if (this.state !== 'menu' && this.player.power > 0) this.player.render(ctx, t);
+    else if (this.state === 'menu') { // idle hero plane on the menu
+      const p = this.player; p.x = Math.sin(t * 0.8) * 40; p.y = v.H * 0.8 + Math.sin(t * 2) * 6; p.bank = Math.cos(t * 0.8) * 0.4;
+      p.render(ctx, t);
+    }
+
+    this.particles.render(ctx);
+
+    // shockwaves
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const w of this.waves) {
+      const k = w.t / w.life;
+      ctx.globalAlpha = k; ctx.lineWidth = 2 + 6 * k; ctx.strokeStyle = w.color; ctx.shadowBlur = 20; ctx.shadowColor = w.color;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+
+    // floating text
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '20px "Russo One", "Arial Black", sans-serif';
+    for (const f of this.texts) {
+      const k = f.life / f.max;
+      ctx.globalAlpha = Math.min(1, k * 2); ctx.shadowBlur = 16; ctx.shadowColor = f.color; ctx.fillStyle = '#fff';
+      const s = 1 + (1 - k) * 0.2 + (k > 0.85 ? (k - 0.85) * 3 : 0);
+      ctx.save(); ctx.translate(f.x, f.y); ctx.scale(s, s); ctx.fillText(f.text, 0, 0); ctx.restore();
+    }
+    ctx.restore();
+    ctx.restore();
+
+    // vignette (screen space)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const cw = v.canvas.width, ch = v.canvas.height;
+    const vig = ctx.createRadialGradient(cw / 2, ch * 0.55, Math.min(cw, ch) * 0.35, cw / 2, ch * 0.55, Math.max(cw, ch) * 0.75);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, cw, ch);
+
+    // DOM HUD
+    this.dom.score.textContent = Math.round(this.shownScore).toLocaleString();
+    this.dom.power.textContent = this.player.power;
+  }
+
+  // ---------- main loop: fixed-step simulation, rAF rendering, hitstop ----------
+  loop(now) {
+    requestAnimationFrame(this.loop);
+    const frame = Math.min(CONFIG.MAX_FRAME, Math.max(0, (now - this.last) / 1000));
+    this.last = now;
+
+    if (this.input.wasPressed('p') || this.input.wasPressed('escape')) this.state === 'play' ? this.pause() : this.resume();
+    if (this.input.wasPressed('f')) { this.fps.on = !this.fps.on; this.dom.fps.hidden = !this.fps.on; }
+    this.input.endFrame();
+
+    if (this.fps.on) {
+      this.fps.frames++; this.fps.t += frame;
+      if (this.fps.t >= 0.5) { this.dom.fps.textContent = `${Math.round(this.fps.frames / this.fps.t)} fps · ${this.particles.live} fx`; this.fps.frames = 0; this.fps.t = 0; }
+    }
+
+    if (this.hitstop > 0) { this.hitstop--; this.acc = 0; this.render(); return; } // freeze-frame
+    if (this.state !== 'pause') {
+      this.acc += frame;
+      let steps = 0;
+      while (this.acc >= CONFIG.STEP && steps < 24) { this.update(CONFIG.STEP); this.acc -= CONFIG.STEP; steps++; }
+    }
+    this.render();
+  }
+}
+
+window.__neon = new Game();
+})();
+</script>
