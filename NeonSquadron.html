@@ -252,6 +252,7 @@ const D_FAR = 4600;      // draw distance
 const ELEV = 34;         // flight altitude in screen units at the player's row
 const LANE = 205;        // half-width of the launch strip
 const BULLET_SPEED = 1500;
+const MAX_VOLLEYS = 12;   // above this fire rate, bullets merge: fewer, stronger rounds (same DPS)
 
 // Sprite-sheet slots: set `src` and the entity swaps from vector to sprite.
 const SPRITES = {
@@ -813,9 +814,9 @@ class Player extends Entity {
       this.game.particles.spawn({ x: this.x + side * 5 * k + rand(-2, 2), y: y + 30 * k, vx: rand(-20, 20) - this.vx * 0.15, vy: rand(260, 360), life: rand(0.18, 0.32), size: rand(4, 7) * k, sizeEnd: 0.5, color: Math.random() < 0.6 ? PALETTE.cyan : PALETTE.violet, drag: 2 });
     }
   }
-  fire() {
+  fire(pow = 1) {
     const g = this.game, n = this.guns, gap = 12;
-    for (let i = 0; i < n; i++) { const off = (i - (n - 1) / 2) * gap; g.bullets.push({ x: this.x + off, d: 20, vx: off * 0.6, prev: 20, life: this.range / BULLET_SPEED }); }
+    for (let i = 0; i < n; i++) { const off = (i - (n - 1) / 2) * gap; g.bullets.push({ x: this.x + off, d: 20, vx: off * 0.6, prev: 20, life: this.range / BULLET_SPEED, pow }); }
     const y = this.screenY;
     g.particles.burst(this.x, y - 38 * this.size, { n: 3, speed: [40, 120], life: [0.06, 0.12], size: [6, 10], colors: [PALETTE.white, PALETTE.cyan], angle: -Math.PI / 2, spread: 1.2 });
     this.squash = 0.06; g.audio.play('shoot');
@@ -1481,7 +1482,9 @@ class Game {
     // firing
     if (inFlight) {
       p.fireT -= dt;
-      while (p.fireT <= 0) { p.fire(); p.fireT += 1 / p.rate; }
+      const cadence = Math.min(p.rate, MAX_VOLLEYS), pow = p.rate / cadence;
+      if (p.fireT > 1 / cadence) p.fireT = 1 / cadence;
+      while (p.fireT <= 0) { p.fire(pow); p.fireT += 1 / cadence; }
       if (p.twinT > 0) { this.dom.twinTxt.textContent = Math.ceil(p.twinT) + 's'; }
       else if (p.twinUsed && !this.dom.twin.hidden) this.dom.twin.hidden = true;
     }
@@ -1582,19 +1585,19 @@ class Game {
           if (pair.passed) continue; const gd = pair.tz - this.dist;
           if (gd >= b.prev && gd <= b.d + step && Math.abs(b.x) < LANE) {
             const h = pair.halves.find(q => b.x >= q.x0 && b.x < q.x1);
-            if (h && h.op !== 'x') { h.val += 1; h.pulse = 1; this.audio.play('tick'); }
+            if (h && h.op !== 'x') { h.acc = (h.acc || 0) + b.pow; const add = Math.floor(h.acc); h.acc -= add; if (add) { h.val += add; h.pulse = 1; this.audio.play('tick'); } }
             b.dead = true; break;
           }
         }
       } else if (st === 'sky' || st === 'takeoff') {
         for (const r of this.rings) {
           if (r.used) continue; const rd = r.tz - this.dist;
-          if (rd >= b.prev && rd <= b.d + step && Math.abs(b.x - r.x) < r.R) { r.val += 1; r.pulse = 1; this.audio.play('tick'); b.dead = true; break; }
+          if (rd >= b.prev && rd <= b.d + step && Math.abs(b.x - r.x) < r.R) { r.acc = (r.acc || 0) + b.pow; const add = Math.floor(r.acc); r.acc -= add; if (add) { r.val += add; r.pulse = 1; this.audio.play('tick'); } b.dead = true; break; }
         }
         if (!b.dead) for (const m of this.mines) {
           if (m.dead) continue; const md = m.tz - this.dist;
           if (md >= b.prev && md <= b.d + step && Math.abs(b.x - m.x) < 36) {
-            b.dead = true; m.hp -= dmg; m.flash = 1; this.audio.play('hit');
+            b.dead = true; m.hp -= dmg * b.pow; m.flash = 1; this.audio.play('hit');
             if (m.hp <= 0) { m.dead = true; this.blowMine(m, true); }
             break;
           }
@@ -1604,7 +1607,7 @@ class Game {
         for (const e of this.enemies) {
           if (e.dead) continue;
           if (Math.abs(b.d - e.d) < 70 * e.scale && Math.abs(b.x - e.x) < 46 * e.scale) {
-            e.hp -= dmg; e.flash = 1; b.dead = true;
+            e.hp -= dmg * b.pow; e.flash = 1; b.dead = true;
             const ep = this.proj(b.x, e.d, e.elev);
             if (this.time - (this._lastSpark || 0) > 0.03) { this._lastSpark = this.time; this.particles.burst(ep.x, ep.y, { n: 2, speed: [60, 200], life: [0.1, 0.22], size: [3, 5], colors: [PALETTE.white, PALETTE.cyan], sparks: 2, angle: Math.PI / 2, spread: 2.4 }); }
             this.audio.play('hit');
@@ -1738,11 +1741,15 @@ class Game {
     // player bullets
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const bolt = GlowCache.bolt(PALETTE.cyan), bw = bolt.width * 0.7, bh = bolt.height * 0.7;
+    const base = ctx.getTransform ? ctx.getTransform() : null;
     for (const b of this.bullets) {
-      const q = this.proj(b.x, b.d, ELEV * this.alt + 6), k = Math.max(0.35, q.s);
-      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(Math.atan2(-q.x, q.y - v.horizon)); ctx.scale(k, k);
-      ctx.drawImage(bolt, -bw / 2, -bh / 2, bw, bh); ctx.restore();
+      const q = this.proj(b.x, b.d, ELEV * this.alt + 6), k = Math.max(0.35, q.s), fat = Math.min(1.8, 1 + (b.pow - 1) * 0.3);
+      if (base) ctx.setTransform(base); else ctx.save();
+      ctx.translate(q.x, q.y); ctx.rotate(Math.atan2(-q.x, q.y - v.horizon)); ctx.scale(k * fat, k * Math.min(1.3, fat));
+      ctx.drawImage(bolt, -bw / 2, -bh / 2, bw, bh);
+      if (!base) ctx.restore();
     }
+    if (base) ctx.setTransform(base);
     ctx.restore();
     // shadow on the strip
     if (this.alt < 0.95 && this.state !== 'result') {
