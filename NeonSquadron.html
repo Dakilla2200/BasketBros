@@ -247,7 +247,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 const CONFIG = {
   FIELD_W: 450, FIELD_H: 760,
   STEP: 1 / 120, MAX_FRAME: 0.1,
-  HITSTOP_FRAMES: 3, DPR_MAX: 2, PARTICLE_CAP: 1800,
+  DPR_MAX: 2, PARTICLE_CAP: 1800,
   HORIZON: 0.24,
 };
 // Track layout (distance units along the flight path)
@@ -1378,7 +1378,7 @@ class Game {
     this.gates = []; this.saws = []; this.rings = []; this.lasers = []; this.walls = []; this.chips = []; this.mines = []; this.beams = [];
     this.mod = null; this.speedMul = 1; this.bossDef = BOSSES[0];
     this.state = 'menu'; this.prevState = null;
-    this.time = 0; this.stateT = 0; this.acc = 0; this.last = performance.now(); this.hitstop = 0; this.lastStop = 0;
+    this.time = 0; this.stateT = 0; this.acc = 0; this.last = performance.now();
     this.dist = 0; this.speed = 0; this.alt = 0; this.wave = 0; this.waveTotal = 0; this.boss = null;
     this.runCash = 0; this.shownCash = save.cash; this.kills = 0;
     this.fps = { on: false, frames: 0, t: 0 };
@@ -1748,9 +1748,8 @@ class Game {
   }
 
   // ---------- juice ----------
-  impact(trauma, stop = CONFIG.HITSTOP_FRAMES, force = false) {
+  impact(trauma) { // screen shake only, the game never pauses on hits
     this.camera.addTrauma(trauma);
-    if (stop && (force || this.time - this.lastStop > 0.22)) { this.hitstop = Math.max(this.hitstop, stop); this.lastStop = this.time; }
   }
   shockwave(x, y, color, max = 90) { this.waves.push({ x, y, r: 4, max, life: 0.45, t: 0.45, color }); }
   floatText(x, y, text, color, size = 22) { this.texts.push({ x, y, ty: y - 60, text, color, size, life: 0.95, max: 0.95 }); }
@@ -1775,7 +1774,7 @@ class Game {
     this.floatText(p.x, p.screenY - 50, '-' + n, PALETTE.danger, 26);
     this.particles.burst(p.x, p.screenY, { n: 30, speed: [100, 420], colors: [PALETTE.danger, PALETTE.amber, PALETTE.white], sparks: 14 });
     this.shockwave(p.x, p.screenY, PALETTE.danger, 120);
-    this.impact(0.6, CONFIG.HITSTOP_FRAMES + 2, true); this.audio.play('hurt'); this.flashRed();
+    this.impact(0.6); this.audio.play('hurt'); this.flashRed();
     this.setLevel(p.level - n, 'bad');
   }
 
@@ -2535,7 +2534,6 @@ class Game {
     if (this.state === 'menu' && this.input.wasPressed('arrowright') && save.stage < save.maxStage) this.pickStage(1);
     this.input.endFrame();
     if (this.fps.on) { this.fps.frames++; this.fps.t += frame; if (this.fps.t >= 0.5) { this.dom.fps.textContent = `${Math.round(this.fps.frames / this.fps.t)} fps · ${this.particles.live} fx`; this.fps.frames = 0; this.fps.t = 0; } }
-    if (this.hitstop > 0) { this.hitstop--; this.acc = 0; this.render(); return; }
     if (this.state !== 'pause') {
       this.acc += frame; let steps = 0;
       while (this.acc >= CONFIG.STEP && steps < 24) { this.update(CONFIG.STEP); this.acc -= CONFIG.STEP; steps++; }
