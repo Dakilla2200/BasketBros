@@ -237,7 +237,7 @@ const upCost = l => Math.floor(50 * Math.pow(1.32, l - 1));
 const startLevel = () => 10 + 8 * (save.power - 1);
 const baseRate = () => 5 + 0.4 * (save.rate - 1);
 const incomeMult = () => 1 + 0.2 * (save.income - 1);
-const stageScale = () => Math.pow(1.42, save.stage - 1);
+const stageScale = () => Math.pow(1.55, save.stage - 1);
 const theme = () => THEMES[(save.stage - 1) % THEMES.length];
 
 /* =====================================================================
@@ -690,8 +690,8 @@ class Player extends Entity {
     this.fireT = 0.3; this.invuln = 0; this.trailT = 0; this.dragStamp = -1; this.dragOrigin = 0;
     this.twinT = 0; this.twinUsed = false; this.tagPulse = 0; this.hurtT = 0;
   }
-  get guns() { let n = Math.min(5, 1 + Math.floor(this.level / 100)); if (this.twinT > 0) n = Math.min(9, n * 2); return n; }
-  get damage() { return (2 + this.level * 0.15) * 0.7; }
+  get guns() { let n = Math.min(5, 1 + Math.floor(this.level / 150)); if (this.twinT > 0) n = Math.min(9, n * 2); return n; }
+  get damage() { return (2 + this.level * 0.1) * 0.7; }
   get screenY() { const g = this.game; return g.view.pY - ELEV * g.alt + Math.sin(g.time * 2.2) * 3 * g.alt; }
   get size() { return (0.92 + Math.min(this.level, 600) / 600 * 0.32) * (1 + 0.1 * this.game.alt); }
 
@@ -774,7 +774,7 @@ class Gunship extends Entity {
     super({ sprite: boss ? SPRITES.boss : SPRITES.drone });
     Object.assign(this, { game, x, d, hp, max: hp, hue, boss, homeX: x });
     this.scale = boss ? 3.6 : 1.7; this.ph = rand(0, TAU); this.flash = 0; this.hpShown = 1; this.rotor = 0;
-    this.vz = boss ? 520 : 140 + game.wave * 26;
+    this.vz = boss ? 520 : 170 + game.wave * 30;
     this.fireT = boss ? 1.6 : rand(1.0, 3.0); this.rotation = 0;
   }
   update(dt) {
@@ -941,20 +941,20 @@ class Game {
     this.gates = []; this.saws = []; this.rings = [];
     for (let i = 0; i < TRACK.GATES; i++) {
       const tz = TRACK.GATE0 + i * TRACK.GATE_GAP;
-      const good = round5(rand(10, 30) * sc), bad = -round5(rand(15, 40) * sc);
-      const mult = i >= 2 && Math.random() < 0.25, goodLeft = Math.random() < 0.5;
+      const good = round5(rand(8, 22) * sc), bad = -round5(rand(20, 50) * sc);
+      const mult = i >= 3 && Math.random() < 0.15, goodLeft = Math.random() < 0.5;
       this.gates.push({ tz, passed: false, halves: [-1, 1].map(side => { const g = (side < 0) === goodLeft; return { side, op: g && mult ? 'x' : '+', val: g ? good : bad, pulse: 0 }; }) });
     }
-    const sawZ = [TRACK.GATE0 + 450, TRACK.GATE0 + 2250, TRACK.GATE0 + 4050].concat(s >= 2 ? [TRACK.GATE0 + 1350] : []).concat(s >= 4 ? [TRACK.GATE0 + 3150] : []);
-    for (const tz of sawZ) this.saws.push({ tz, x: 0, ph: rand(0, TAU), sp: rand(1.2, 1.9) + 0.1 * s, rot: 0, hit: false });
+    const sawZ = [TRACK.GATE0 + 450, TRACK.GATE0 + 1350, TRACK.GATE0 + 2250, TRACK.GATE0 + 4050].concat(s >= 2 ? [TRACK.GATE0 + 3150] : []).concat(s >= 4 ? [TRACK.GATE0 + 3150] : []);
+    for (const tz of sawZ) this.saws.push({ tz, x: 0, ph: rand(0, TAU), sp: rand(1.6, 2.4) + 0.15 * s, rot: 0, hit: false });
     for (let k = 0; k < TRACK.ROWS; k++) {
       const tz = TRACK.RING0 + k * TRACK.RING_GAP, n = Math.random() < 0.45 ? 3 : 2;
       const xs = n === 3 ? [-150, 0, 150] : [-105, 105];
       let hasGood = false;
       xs.forEach((x, idx) => {
         let type, val;
-        if (!(idx === xs.length - 1 && !hasGood) && Math.random() < 0.34) { type = 'level'; val = -round5(rand(10, 35) * sc); }
-        else { const t = Math.random(); if (t < 0.5) { type = 'level'; val = round5(rand(10, 40) * sc); } else if (t < 0.78) { type = 'rate'; val = randi(8, 20); } else { type = 'range'; val = randi(8, 20); } hasGood = true; }
+        if (!(idx === xs.length - 1 && !hasGood) && Math.random() < 0.45) { type = 'level'; val = -round5(rand(15, 40) * sc); }
+        else { const t = Math.random(); if (t < 0.5) { type = 'level'; val = round5(rand(10, 30) * sc); } else if (t < 0.78) { type = 'rate'; val = randi(8, 20); } else { type = 'range'; val = randi(8, 20); } hasGood = true; }
         this.rings.push({ tz, x: x + rand(-14, 14), R: n === 3 ? 62 : 76, type, val, used: false, pulse: 0, got: false, fade: 1 });
       });
     }
@@ -1048,8 +1048,8 @@ class Game {
 
   // ---------- spawning ----------
   spawnWave() {
-    const s = save.stage, rows = 2 + this.wave + Math.min(2, Math.floor((s - 1) / 2));
-    const hp = Math.round((32 + 24 * this.wave) * stageScale()), hue = [150, 275, 25][this.wave % 3];
+    const s = save.stage, rows = 3 + this.wave + Math.min(2, Math.floor((s - 1) / 2));
+    const hp = Math.round((55 + 35 * this.wave) * stageScale()), hue = [150, 275, 25][this.wave % 3];
     this.waveTotal = 0;
     for (let r = 0; r < rows; r++) {
       const cols = r % 2 === 0 ? 4 : 3;
@@ -1059,7 +1059,7 @@ class Game {
     this.audio.play('warn');
   }
   spawnBoss() {
-    const hp = Math.round(1500 * Math.pow(1.5, save.stage - 1));
+    const hp = Math.round(2600 * Math.pow(1.6, save.stage - 1));
     this.boss = new Gunship(this, 0, 2600, hp, 320, true);
     this.enemies.push(this.boss);
     this.dom.bossWrap.hidden = false; this.dom.bossFill.style.width = '100%';
@@ -1067,7 +1067,7 @@ class Game {
     this.audio.play('warn');
   }
   enemyFire(e, spread = 1) {
-    const dmg = Math.round((6 + 4 * save.stage) * (e.boss ? 1.4 : 1)), sp = e.boss ? 420 : 460;
+    const dmg = Math.round((9 + 5 * save.stage) * (e.boss ? 1.4 : 1)), sp = e.boss ? 500 : 560;
     for (let i = 0; i < spread; i++) {
       const tx = this.player.x + (spread > 1 ? (i - (spread - 1) / 2) * 95 : rand(-30, 30));
       const time = e.d / sp;
@@ -1146,8 +1146,8 @@ class Game {
     for (const s of this.saws) {
       s.x = Math.sin(this.time * s.sp + s.ph) * 160; s.rot += dt * 14;
       const d = s.tz - this.dist;
-      if (st === 'runway' && !s.hit && Math.abs(d) < 34 && Math.abs(p.x - s.x) < 58) {
-        s.hit = true; this.audio.play('saw'); this.hurt(Math.round(12 + 6 * save.stage));
+      if (st === 'runway' && !s.hit && Math.abs(d) < 34 && Math.abs(p.x - s.x) < 64) {
+        s.hit = true; this.audio.play('saw'); this.hurt(Math.round(18 + 8 * save.stage));
       }
     }
     if (st === 'runway' && this.dist >= TRACK.FINISH) { this.setState('takeoff'); this.audio.play('takeoff'); this.impact(0.25, 0); }
@@ -1224,14 +1224,14 @@ class Game {
       if (!inFlight) continue;
       e.fireT -= dt;
       if (e.boss) {
-        if (e.fireT <= 0 && e.d <= 800) { e.fireT = Math.max(0.75, 1.5 - save.stage * 0.08); this.enemyFire(e, Math.random() < 0.5 ? 5 : 3); }
+        if (e.fireT <= 0 && e.d <= 800) { e.fireT = Math.max(0.55, 1.15 - save.stage * 0.08); this.enemyFire(e, Math.random() < 0.5 ? 5 : 3); }
         this.dom.bossFill.style.width = (Math.max(0, e.hp) / e.max * 100) + '%';
       } else {
-        if (e.fireT <= 0 && e.d < 1000 && e.d > 160) { e.fireT = rand(1.6, 3.4) / (1 + 0.08 * save.stage); this.enemyFire(e); }
+        if (e.fireT <= 0 && e.d < 1200 && e.d > 160) { e.fireT = rand(1.1, 2.4) / (1 + 0.08 * save.stage); this.enemyFire(e); }
         if (Math.abs(e.d) < 40 && Math.abs(e.x - p.x) < 70) {
           e.dead = true; const ep = this.proj(e.x, e.d, ELEV);
           this.particles.burst(ep.x, ep.y, { n: 40, speed: [90, 420], colors: [PALETTE.amber, PALETTE.white, PALETTE.danger], sparks: 14 });
-          this.audio.play('explode'); this.hurt(Math.round(20 + 6 * save.stage));
+          this.audio.play('explode'); this.hurt(Math.round(30 + 8 * save.stage));
         }
       }
     }
