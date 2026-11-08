@@ -93,6 +93,16 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 .tog[aria-pressed="true"] .pill::after{transform:translateX(16px)}
 
 /* Upgrade cards */
+.stageSel{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:8px}
+.stageSel .arr{pointer-events:auto;height:44px;border-radius:var(--r-md);font-family:var(--display);font-size:20px;background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--glass-edge) inset;transition:transform .18s var(--ease-out),box-shadow .25s,opacity .25s}
+.stageSel .arr:not(:disabled):hover{box-shadow:0 0 0 1px var(--cyan) inset,0 0 18px rgba(41,243,255,.35)}
+.stageSel .arr:not(:disabled):active{transform:scale(.92)}
+.stageSel .arr:disabled{opacity:.3;cursor:default}
+.stageSel .info{display:flex;flex-direction:column;gap:2px;padding:6px 4px;border-radius:var(--r-md);background:rgba(255,255,255,.04)}
+.stageSel .nm{font-family:var(--display);font-size:20px;letter-spacing:.06em;line-height:1.1;transition:color .3s,text-shadow .3s}
+.stageSel .meta{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.stageSel .info.swap{animation:swap .35s var(--ease-out)}
+@keyframes swap{from{opacity:0;transform:translateY(6px)}}
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .card{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px 8px;border-radius:var(--r-md);background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--glass-edge) inset;transition:transform .18s var(--ease-out),box-shadow .25s}
 .card:hover{box-shadow:0 0 0 1px var(--cyan) inset,0 0 18px rgba(41,243,255,.3)}
@@ -141,6 +151,11 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
   <div class="panel glass">
     <h1 class="title">NEON<br>SQUADRON</h1>
     <p class="sub">Drag to steer through the gates, shoot the rings to boost them, then take down the drone waves and the mothership.</p>
+    <div class="stageSel">
+      <button class="arr" id="stagePrev" aria-label="Previous stage">‹</button>
+      <div class="info" id="stageInfo"><span class="nm" id="stageName">SYNTH · STAGE 1</span><span class="meta" id="stageMeta">Highest reached: 1</span></div>
+      <button class="arr" id="stageNext" aria-label="Next stage">›</button>
+    </div>
     <div class="cards">
       <button class="card" id="upPower"><span class="nm">Power</span><span class="ic i1">▲<span class="lv">1</span></span><span class="val"></span><span class="cost"><span class="n">0</span><i class="chip"></i></span></button>
       <button class="card" id="upRate"><span class="nm">Fire rate</span><span class="ic i2">⁞<span class="lv">1</span></span><span class="val"></span><span class="cost"><span class="n">0</span><i class="chip"></i></span></button>
@@ -232,6 +247,7 @@ const THEMES = [
 const SAVE_KEY = 'neonsq.v2';
 const save = { cash: 0, stage: 1, power: 1, rate: 1, income: 1, sfx: true, music: true };
 try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
+save.maxStage = Math.max(save.maxStage || 1, save.stage);
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
 const upCost = l => Math.floor(50 * Math.pow(1.32, l - 1));
 const startLevel = () => 10 + 8 * (save.power - 1);
@@ -884,6 +900,8 @@ class Game {
     const $ = id => document.getElementById(id);
     const click = (id, fn) => $(id).addEventListener('click', e => { e.stopPropagation(); fn(); });
     click('startBtn', () => this.startRun());
+    click('stagePrev', () => this.pickStage(-1));
+    click('stageNext', () => this.pickStage(1));
     click('pauseBtn', () => this.pause());
     click('resumeBtn', () => this.resume());
     click('quitBtn', () => { this.show(this.dom.pause, false); this.toMenu(); });
@@ -895,7 +913,7 @@ class Game {
     let armed = false;
     click('resetBtn', () => {
       if (!armed) { armed = true; $('resetBtn').textContent = 'Tap again to confirm'; setTimeout(() => { armed = false; $('resetBtn').textContent = 'Reset progress'; }, 2500); return; }
-      Object.assign(save, { cash: 0, stage: 1, power: 1, rate: 1, income: 1 }); persist(); armed = false;
+      Object.assign(save, { cash: 0, stage: 1, maxStage: 1, power: 1, rate: 1, income: 1 }); persist(); armed = false;
       $('resetBtn').textContent = 'Reset progress'; this.show(this.dom.pause, false); this.toMenu();
     });
     const sync = () => {
@@ -924,6 +942,22 @@ class Game {
       this.refreshCards();
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.inFlight()) this.pause(); });
+  }
+  pickStage(delta) {
+    const next = clamp(save.stage + delta, 1, save.maxStage);
+    if (this.state !== 'menu' || next === save.stage) { this.audio.play('deny'); return; }
+    save.stage = next; persist(); this.audio.play('ui');
+    this.toMenu();
+    const info = document.getElementById('stageInfo'); info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap');
+  }
+  refreshStage() {
+    const th = theme();
+    const nm = document.getElementById('stageName');
+    nm.textContent = `${th.name.toUpperCase()} · STAGE ${save.stage}`;
+    nm.style.color = th.gridB; nm.style.textShadow = `0 0 14px ${hexA(th.gridA, 0.8)}`;
+    document.getElementById('stageMeta').textContent = save.maxStage > 1 ? `Highest reached: ${save.maxStage}` : 'Clear this stage to unlock the next';
+    document.getElementById('stagePrev').disabled = save.stage <= 1;
+    document.getElementById('stageNext').disabled = save.stage >= save.maxStage;
   }
   refreshCards() {
     for (const c of this.cards) {
@@ -972,6 +1006,7 @@ class Game {
     this.dom.twin.hidden = true; this.dom.bossWrap.hidden = true;
     this.show(this.dom.result, false); this.show(this.dom.pause, false); this.show(this.dom.menu, true);
     this.dom.stage.textContent = `${theme().name} · Lv ${save.stage}`;
+    this.refreshStage();
     this.refreshCards();
   }
   startRun() {
@@ -1009,7 +1044,7 @@ class Game {
       title.textContent = 'Stage Clear!'; title.classList.remove('bad');
       add('Cash collected', Math.floor(this.runCash)); add('Clear bonus', bonus); add('Income', '×' + incomeMult().toFixed(1)); add('Total', '+' + total);
       document.getElementById('resBtn').textContent = 'NEXT STAGE';
-      save.stage++;
+      save.stage++; save.maxStage = Math.max(save.maxStage || 1, save.stage);
     } else {
       total = Math.floor(this.runCash);
       title.textContent = 'Shot Down'; title.classList.add('bad');
@@ -1484,6 +1519,8 @@ class Game {
     if (this.input.wasPressed('p') || this.input.wasPressed('escape')) this.state === 'pause' ? this.resume() : this.pause();
     if (this.input.wasPressed('f')) { this.fps.on = !this.fps.on; this.dom.fps.hidden = !this.fps.on; }
     if ((this.input.wasPressed('enter') || this.input.wasPressed(' ')) && this.state === 'menu') this.startRun();
+    if (this.state === 'menu' && this.input.wasPressed('arrowleft') && save.stage > 1) this.pickStage(-1);
+    if (this.state === 'menu' && this.input.wasPressed('arrowright') && save.stage < save.maxStage) this.pickStage(1);
     this.input.endFrame();
     if (this.fps.on) { this.fps.frames++; this.fps.t += frame; if (this.fps.t >= 0.5) { this.dom.fps.textContent = `${Math.round(this.fps.frames / this.fps.t)} fps · ${this.particles.live} fx`; this.fps.frames = 0; this.fps.t = 0; } }
     if (this.hitstop > 0) { this.hitstop--; this.acc = 0; this.render(); return; }
