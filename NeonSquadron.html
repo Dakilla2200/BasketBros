@@ -131,6 +131,9 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 .resTitle{font-family:var(--display);font-size:40px;line-height:1;margin:0;text-shadow:0 0 22px rgba(41,243,255,.7)}
 .resTitle.bad{text-shadow:0 0 22px rgba(255,59,107,.85)}
 #flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,59,107,0) 40%,rgba(255,59,107,.5));opacity:0;transition:opacity .3s ease}
+.saveNote{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink-dim)}
+.saveNote.ok{color:var(--lime)}
+.saveNote.warn{color:var(--amber)}
 #soundTip{font-size:11px;color:var(--ink-dim);letter-spacing:.04em}
 /* Admin console */
 #admin{position:fixed;left:50%;top:calc(62px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(calc(100% - 24px),400px);max-height:calc(100% - 90px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:var(--r-lg);z-index:20;animation:panelIn .4s var(--ease-out);border-color:rgba(255,181,58,.45)}
@@ -203,6 +206,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
       <button class="tog" id="sfxTog" aria-pressed="true">SFX <span class="pill"></span></button>
       <button class="tog" id="musTog" aria-pressed="true">Music <span class="pill"></span></button>
     </div>
+    <span id="saveNote" class="saveNote">Connecting cloud save…</span>
     <span id="soundTip">No sound on iPhone? Turn up the volume. On iOS 16 or older, also flip the silent switch off.</span>
   </div>
 </div>
@@ -359,7 +363,50 @@ let adminPreset = null;
 try { adminPreset = JSON.parse(localStorage.getItem(PRESET_KEY) || 'null'); } catch (e) {}
 if (adminPreset && adminPreset.on && adminPreset.levels) Object.assign(save, adminPreset.levels);
 save.maxStage = Math.max(save.maxStage || 1, save.stage);
-const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
+// Saving: the browser copy is instant but can be wiped (the Claude app, cleared
+// site data, another device). Cloud keeps a private copy per player in the
+// artifact's own database; whichever copy is newer wins on load.
+const Cloud = {
+  ref: null, status: 'connecting', writing: false, dirty: false, timer: null, onChange: null,
+  set(st) { this.status = st; this.onChange && this.onChange(st); },
+  async init() {
+    try {
+      const use = window.claude && window.claude.use ? (n => window.claude.use(n)) : null;
+      if (!use) return this.set('local');
+      const [db, user] = await Promise.all([use('db'), use('user')]);
+      const uid = user ? await user.id() : null;
+      if (!db || !uid) return this.set('local');
+      this.ref = db.doc('data/users/' + uid + '/save');
+      const snap = await Promise.race([this.ref.get(), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 10000))]);
+      const remote = snap.exists ? snap.data() : null;
+      if (remote && (remote.updatedAt || 0) > (save.updatedAt || 0)) {
+        const { adminPreset: rp, ...rest } = remote;
+        Object.assign(save, rest);
+        if (rp) { adminPreset = rp; try { localStorage.setItem(PRESET_KEY, JSON.stringify(rp)); } catch (e) {} }
+        if (adminPreset && adminPreset.on && adminPreset.levels) Object.assign(save, adminPreset.levels);
+        try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+        this.set('synced'); return 'loaded';
+      }
+      this.set('synced'); this.push(); // cloud empty or older: upload this device's progress
+      return 'kept';
+    } catch (e) { this.set('local'); return null; }
+  },
+  push() { if (!this.ref) return; this.dirty = true; clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 1200); },
+  async flush() {
+    if (!this.ref || this.writing || !this.dirty) return;
+    this.writing = true; this.dirty = false;
+    try { await this.ref.set(JSON.parse(JSON.stringify(Object.assign({}, save, { adminPreset: adminPreset || null })))); this.set('synced'); }
+    catch (e) { if (e && e.code === 'unavailable') this.dirty = true; else if (e && (e.code === 'invalid_argument' || e.code === 'not_granted' || e.code === 'revoked')) { this.ref = null; this.set('local'); } }
+    this.writing = false;
+    if (this.dirty) this.push();
+  },
+};
+const persist = () => {
+  save.updatedAt = Date.now();
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+  Cloud.push();
+};
+document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(Cloud.timer); Cloud.flush(); } });
 // Hangar upgrades: base cost, cost growth per level, max level (0 = no cap)
 const UPGRADES = [
   { key: 'power',  name: 'Power',     icon: '▲', cls: 'i1', base: 50,  grow: 1.32, max: 0,  val: () => `Start Lv ${startLevel()}` },
@@ -1501,7 +1548,7 @@ class Game {
     keep.checked = !!(adminPreset && adminPreset.on);
     keep.addEventListener('change', () => {
       if (keep.checked) this.applyAdminLevels();
-      else { try { localStorage.setItem(PRESET_KEY, JSON.stringify({ on: false, levels: adminPreset ? adminPreset.levels : {} })); } catch (e) {} adminPreset = { on: false }; this.adminLog('Preset off: levels will no longer be re-applied on load', 'ok'); }
+      else { try { localStorage.setItem(PRESET_KEY, JSON.stringify({ on: false, levels: adminPreset ? adminPreset.levels : {} })); } catch (e) {} adminPreset = { on: false }; Cloud.push(); this.adminLog('Preset off: levels will no longer be re-applied on load', 'ok'); }
     });
     document.getElementById('admApply').addEventListener('click', e => { e.stopPropagation(); this.applyAdminLevels(); });
   }
@@ -1519,6 +1566,7 @@ class Game {
     const keep = document.getElementById('admKeep').checked;
     adminPreset = { on: keep, levels };
     try { localStorage.setItem(PRESET_KEY, JSON.stringify(adminPreset)); } catch (e) {}
+    Cloud.push();
     this.adminLog((changed.length ? 'Set ' + changed.join(', ') : 'Levels unchanged') + (keep ? ' · re-applied on every load' : '') + ' (applies next run)', 'ok');
     this.audio.play('buy');
   }
@@ -2599,5 +2647,16 @@ class Game {
 }
 
 window.__neon = new Game();
+{
+  const g = window.__neon, note = document.getElementById('saveNote');
+  Cloud.onChange = st => {
+    note.className = 'saveNote ' + (st === 'synced' ? 'ok' : st === 'local' ? 'warn' : '');
+    note.textContent = st === 'synced' ? '✓ Progress saved to your account' : st === 'local' ? 'Saved on this device only' : 'Connecting cloud save…';
+  };
+  Cloud.onChange(Cloud.status);
+  Cloud.init().then(r => {
+    if (r === 'loaded') { g.shownCash = save.cash; if (g.state === 'menu') g.toMenu(); else { g.refreshCards(); g.refreshStage(); } }
+  });
+}
 })();
 </script>
