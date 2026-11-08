@@ -142,6 +142,16 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 #admin .quick button:hover{box-shadow:0 0 0 1px var(--amber) inset,0 0 14px rgba(255,181,58,.3)}
 #admin .quick button:active{transform:scale(.94)}
 #admin .quick button[aria-pressed="true"]{box-shadow:0 0 0 1px var(--lime) inset,0 0 14px rgba(141,255,90,.45);color:var(--lime)}
+#admin{overflow-y:auto;overscroll-behavior:contain}
+#admLevels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#admLevels label{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+#admLevels input{width:100%;min-width:0;padding:7px 8px;border-radius:8px;border:0;background:rgba(0,0,0,.4);box-shadow:0 0 0 1px var(--glass-edge) inset;color:var(--ink);font:600 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;outline:none;user-select:text;-webkit-user-select:text}
+#admLevels input:focus{box-shadow:0 0 0 1px var(--amber) inset}
+.admRow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.admRow label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink-dim);cursor:pointer}
+.admRow input[type=checkbox]{width:16px;height:16px;accent-color:var(--amber)}
+.admRow button{padding:8px 14px;border-radius:9px;font-family:var(--display);font-size:14px;color:#fff;background:linear-gradient(100deg,var(--amber),var(--magenta))}
+#admin .sec{font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--amber)}
 #adminLog{flex:1;min-height:70px;max-height:150px;overflow-y:auto;padding:8px 10px;border-radius:9px;background:rgba(0,0,0,.35);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink-dim);white-space:pre-wrap;word-break:break-word;user-select:text;-webkit-user-select:text}
 #adminLog .ok{color:var(--lime)}#adminLog .err{color:var(--danger)}#adminLog .cmd{color:var(--cyan)}
 #adminForm{display:flex;gap:6px}
@@ -222,6 +232,12 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
     <button data-cmd="skip sky">Skip → sky</button>
     <button data-cmd="skip combat">Skip → waves</button>
     <button data-cmd="skip boss">Skip → boss</button>
+  </div>
+  <span class="sec">Upgrade levels</span>
+  <div id="admLevels"></div>
+  <div class="admRow">
+    <label for="admKeep"><input type="checkbox" id="admKeep"> Re-apply on every load</label>
+    <button id="admApply" type="button">SET LEVELS</button>
   </div>
   <div id="adminLog" aria-live="polite"></div>
   <form id="adminForm" autocomplete="off"><input id="adminInput" placeholder="type a command, e.g. help" spellcheck="false" autocapitalize="off" autocorrect="off"><button type="submit">RUN</button></form>
@@ -337,6 +353,11 @@ const THEMES = [
 const SAVE_KEY = 'neonsq.v2';
 const save = { cash: 0, stage: 1, power: 1, rate: 1, income: 1, sfx: true, music: true };
 try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
+// Admin preset: custom upgrade levels that are re-applied every time the game loads
+const PRESET_KEY = 'neonsq.adminPreset';
+let adminPreset = null;
+try { adminPreset = JSON.parse(localStorage.getItem(PRESET_KEY) || 'null'); } catch (e) {}
+if (adminPreset && adminPreset.on && adminPreset.levels) Object.assign(save, adminPreset.levels);
 save.maxStage = Math.max(save.maxStage || 1, save.stage);
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
 // Hangar upgrades: base cost, cost growth per level, max level (0 = no cap)
@@ -1454,6 +1475,7 @@ class Game {
   }
   // ---------- admin console ----------
   bindAdmin() {
+    this.buildAdminLevels();
     const $ = id => document.getElementById(id);
     // Open: ` key, or tap the stage label 5 times quickly (phones)
     $('stagePill').addEventListener('click', e => {
@@ -1467,9 +1489,43 @@ class Game {
     document.querySelectorAll('#admin .quick button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); this.runCmd(b.dataset.cmd); }));
     ['pointerdown', 'touchstart'].forEach(ev => $('admin').addEventListener(ev, e => e.stopPropagation(), { passive: true }));
   }
+  buildAdminLevels() {
+    const box = document.getElementById('admLevels');
+    for (const u of UPGRADES) {
+      const lab = document.createElement('label'); lab.htmlFor = 'adm-' + u.key; lab.textContent = u.name;
+      const inp = document.createElement('input'); inp.type = 'number'; inp.id = 'adm-' + u.key; inp.min = 1; inp.max = u.max || 99999; inp.step = 1; inp.inputMode = 'numeric';
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); this.applyAdminLevels(); } });
+      lab.appendChild(inp); box.appendChild(lab);
+    }
+    const keep = document.getElementById('admKeep');
+    keep.checked = !!(adminPreset && adminPreset.on);
+    keep.addEventListener('change', () => {
+      if (keep.checked) this.applyAdminLevels();
+      else { try { localStorage.setItem(PRESET_KEY, JSON.stringify({ on: false, levels: adminPreset ? adminPreset.levels : {} })); } catch (e) {} adminPreset = { on: false }; this.adminLog('Preset off: levels will no longer be re-applied on load', 'ok'); }
+    });
+    document.getElementById('admApply').addEventListener('click', e => { e.stopPropagation(); this.applyAdminLevels(); });
+  }
+  fillAdminLevels() { for (const u of UPGRADES) { const el = document.getElementById('adm-' + u.key); if (el) el.value = upLevel(u.key); } }
+  applyAdminLevels() {
+    const levels = {}, changed = [];
+    for (const u of UPGRADES) {
+      const el = document.getElementById('adm-' + u.key), v = Math.round(parseFloat(el.value));
+      if (!isFinite(v)) { el.value = upLevel(u.key); continue; }
+      const lv = clamp(v, 1, u.max || 99999); el.value = lv; levels[u.key] = lv;
+      if (lv !== upLevel(u.key)) changed.push(`${u.name} ${lv}`);
+      save[u.key] = lv;
+    }
+    persist(); this.refreshCards();
+    const keep = document.getElementById('admKeep').checked;
+    adminPreset = { on: keep, levels };
+    try { localStorage.setItem(PRESET_KEY, JSON.stringify(adminPreset)); } catch (e) {}
+    this.adminLog((changed.length ? 'Set ' + changed.join(', ') : 'Levels unchanged') + (keep ? ' · re-applied on every load' : '') + ' (applies next run)', 'ok');
+    this.audio.play('buy');
+  }
   toggleAdmin(force) {
     const el = document.getElementById('admin'), open = force ?? el.hidden;
     el.hidden = !open; this.audio.play(open ? 'ui' : 'uiBack');
+    if (open) this.fillAdminLevels();
     if (open && !this._adminGreeted) { this._adminGreeted = true; this.adminLog('Admin console. Type "help" for every command.', 'ok'); }
   }
   adminLog(text, cls) {
@@ -1570,7 +1626,7 @@ class Game {
         for (const u of UPGRADES) save[u.key] = u.max || 25; persist(); this.refreshCards(); ok('Every upgrade maxed (uncapped ones set to 25); applies next run'); this.audio.play('buy'); break;
       case 'upgrade': {
         const key = (a0 || '').toLowerCase(), lv = Math.round(parseFloat(args[1]));
-        if (!UPG[key] || !(lv >= 1 && lv <= (UPG[key].max || 200))) return err(`Usage: upgrade <${UPGRADES.map(u => u.key).join('|')}> <level>`);
+        if (!UPG[key] || !(lv >= 1 && lv <= (UPG[key].max || 99999))) return err(`Usage: upgrade <${UPGRADES.map(u => u.key).join('|')}> <level>`);
         save[key] = lv; persist(); this.refreshCards(); ok(`${key} upgrade set to ${lv} (applies next run)`); break;
       }
       case 'speed':
