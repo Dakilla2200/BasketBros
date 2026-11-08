@@ -44,7 +44,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 #pauseBtn{pointer-events:auto;height:42px;display:grid;place-items:center;font-size:15px;letter-spacing:2px;transition:transform .15s,box-shadow .2s,opacity .3s}
 #pauseBtn:active{transform:scale(.92)}
 #hud:not(.live) #pauseBtn{opacity:0;pointer-events:none}
-#stagePill{justify-self:center;padding:8px 16px;font-family:var(--display);font-size:15px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 0 12px rgba(41,243,255,.6)}
+#stagePill{pointer-events:auto;cursor:default;justify-self:center;padding:8px 16px;font-family:var(--display);font-size:15px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 0 12px rgba(41,243,255,.6)}
 #cashPill{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 14px;font-family:var(--display);font-size:19px;font-variant-numeric:tabular-nums;color:#eaffdf;text-shadow:0 0 12px rgba(141,255,90,.7)}
 .chip{width:16px;height:16px;transform:rotate(45deg);border-radius:3px;background:linear-gradient(135deg,#eaffdf,var(--lime) 45%,#1fae5a);box-shadow:0 0 10px rgba(141,255,90,.9)}
 #cashPill.bump{animation:bump .25s var(--ease-out)}
@@ -74,6 +74,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 /* ---------- Overlays ---------- */
 .overlay{position:fixed;inset:0;display:grid;place-items:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(64px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s;background:radial-gradient(ellipse at 50% 40%,rgba(7,4,15,0) 0%,rgba(7,4,15,.55) 80%);overflow-y:auto}
 .overlay.show{opacity:1;visibility:visible;transition:opacity .35s ease}
+.overlay{pointer-events:none}.overlay .panel{pointer-events:auto}
 .panel{width:min(100%,390px);padding:22px 18px 18px;border-radius:var(--r-lg);display:flex;flex-direction:column;gap:14px;text-align:center;transform:translateY(24px) scale(.96);opacity:0}
 .overlay.show .panel{animation:panelIn .55s var(--ease-out) forwards}
 @keyframes panelIn{to{transform:none;opacity:1}}
@@ -128,6 +129,23 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 .resTitle.bad{text-shadow:0 0 22px rgba(255,59,107,.85)}
 #flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,59,107,0) 40%,rgba(255,59,107,.5));opacity:0;transition:opacity .3s ease}
 #soundTip{font-size:11px;color:var(--ink-dim);letter-spacing:.04em}
+/* Admin console */
+#admin{position:fixed;left:50%;top:calc(62px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(calc(100% - 24px),400px);max-height:calc(100% - 90px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:var(--r-lg);z-index:20;animation:panelIn .4s var(--ease-out);border-color:rgba(255,181,58,.45)}
+#admin header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#admin h3{margin:0;font-family:var(--display);font-size:16px;letter-spacing:.2em;color:var(--amber);text-shadow:0 0 12px rgba(255,181,58,.6)}
+#admin .x{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.06);box-shadow:0 0 0 1px var(--glass-edge) inset;font-size:16px}
+#admin .quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#admin .quick button{padding:8px 4px;border-radius:9px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--glass-edge) inset;transition:box-shadow .2s,transform .15s}
+#admin .quick button:hover{box-shadow:0 0 0 1px var(--amber) inset,0 0 14px rgba(255,181,58,.3)}
+#admin .quick button:active{transform:scale(.94)}
+#admin .quick button[aria-pressed="true"]{box-shadow:0 0 0 1px var(--lime) inset,0 0 14px rgba(141,255,90,.45);color:var(--lime)}
+#adminLog{flex:1;min-height:70px;max-height:150px;overflow-y:auto;padding:8px 10px;border-radius:9px;background:rgba(0,0,0,.35);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink-dim);white-space:pre-wrap;word-break:break-word;user-select:text;-webkit-user-select:text}
+#adminLog .ok{color:var(--lime)}#adminLog .err{color:var(--danger)}#adminLog .cmd{color:var(--cyan)}
+#adminForm{display:flex;gap:6px}
+#adminInput{flex:1;min-width:0;padding:9px 10px;border-radius:9px;border:0;background:rgba(0,0,0,.4);box-shadow:0 0 0 1px var(--glass-edge) inset;color:var(--ink);font:14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;outline:none;user-select:text;-webkit-user-select:text}
+#adminInput:focus{box-shadow:0 0 0 1px var(--amber) inset}
+#adminForm button{padding:0 14px;border-radius:9px;font-family:var(--display);background:linear-gradient(100deg,var(--amber),var(--magenta));color:#fff}
+#adminBadge{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(60px + env(safe-area-inset-top,0px));padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--amber);text-transform:uppercase}
 @media (prefers-reduced-motion: reduce){.title{animation:none}.overlay.show .panel{animation-duration:.01s}}
 @media (max-height:640px){.title{font-size:34px}.panel{gap:10px;padding:16px 14px 14px}}
 </style>
@@ -145,6 +163,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
   <button id="twin" class="glass" hidden><span class="ico">⇶</span><span id="twinTxt">2x Shot</span></button>
   <div id="bossWrap" class="glass" hidden><span>MOTHERSHIP</span><div id="bossBar"><div id="bossFill"></div></div></div>
   <div id="fps" class="glass" hidden>-- fps</div>
+  <div id="adminBadge" class="glass" hidden>God mode</div>
 </div>
 
 <div class="overlay show" id="menu">
@@ -182,6 +201,24 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
     <button class="btn ghost" id="resetBtn">Reset progress</button>
   </div>
 </div>
+
+<div id="admin" class="glass" hidden role="dialog" aria-label="Admin console">
+  <header><h3>ADMIN</h3><button class="x" id="adminClose" aria-label="Close admin console">✕</button></header>
+  <div class="quick">
+    <button data-cmd="god" id="admGod" aria-pressed="false">God mode</button>
+    <button data-cmd="cash 1000">+1000 cash</button>
+    <button data-cmd="level +100">+100 level</button>
+    <button data-cmd="unlock">Unlock stages</button>
+    <button data-cmd="maxup">Max upgrades</button>
+    <button data-cmd="killall">Kill all</button>
+    <button data-cmd="skip sky">Skip → sky</button>
+    <button data-cmd="skip combat">Skip → waves</button>
+    <button data-cmd="skip boss">Skip → boss</button>
+  </div>
+  <div id="adminLog" aria-live="polite"></div>
+  <form id="adminForm" autocomplete="off"><input id="adminInput" placeholder="type a command, e.g. help" spellcheck="false" autocapitalize="off" autocorrect="off"><button type="submit">RUN</button></form>
+</div>
+
 
 <div class="overlay" id="result">
   <div class="panel glass">
@@ -460,7 +497,7 @@ class Input {
   constructor(view) {
     this.keys = new Set(); this.pressed = new Set();
     this.pointer = { active: false, id: null, x: 0, y: 0, startX: 0, downStamp: 0 };
-    addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (!this.keys.has(k)) this.pressed.add(k); this.keys.add(k); if (['arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault(); });
+    addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return; const k = e.key.toLowerCase(); if (!this.keys.has(k)) this.pressed.add(k); this.keys.add(k); if (['arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault(); });
     addEventListener('keyup', e => this.keys.delete(e.key.toLowerCase()));
     addEventListener('blur', () => { this.keys.clear(); this.pointer.active = false; });
     const cv = view.canvas;
@@ -879,6 +916,7 @@ class Game {
     this.dist = 0; this.speed = 0; this.alt = 0; this.wave = 0; this.waveTotal = 0; this.boss = null;
     this.runCash = 0; this.shownCash = save.cash; this.kills = 0;
     this.fps = { on: false, frames: 0, t: 0 };
+    this.admin = { god: false, speed: 1, taps: [] };
     const $ = id => document.getElementById(id);
     this.dom = { hud: $('hud'), cash: $('cashV'), cashPill: $('cashPill'), stage: $('stagePill'), menu: $('menu'), pause: $('pause'), result: $('result'), flash: $('flash'), fps: $('fps'), twin: $('twin'), twinTxt: $('twinTxt'), bossWrap: $('bossWrap'), bossFill: $('bossFill'), pIcon: $('pIcon'), progress: $('progress') };
     for (let i = 0; i < 12; i++) { const d = document.createElement('div'); d.className = 'dot'; this.dom.progress.insertBefore(d, this.dom.progress.firstChild); }
@@ -897,6 +935,7 @@ class Game {
 
   // ---------- UI ----------
   bindUI() {
+    this.bindAdmin();
     const $ = id => document.getElementById(id);
     const click = (id, fn) => $(id).addEventListener('click', e => { e.stopPropagation(); fn(); });
     click('startBtn', () => this.startRun());
@@ -942,6 +981,139 @@ class Game {
       this.refreshCards();
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.inFlight()) this.pause(); });
+  }
+  // ---------- admin console ----------
+  bindAdmin() {
+    const $ = id => document.getElementById(id);
+    // Open: ` key, or tap the stage label 5 times quickly (phones)
+    $('stagePill').addEventListener('click', e => {
+      e.stopPropagation();
+      const now = performance.now(), taps = this.admin.taps.filter(t => now - t < 2000); taps.push(now); this.admin.taps = taps;
+      if (taps.length >= 5) { this.admin.taps = []; this.toggleAdmin(); }
+    });
+    $('adminClose').addEventListener('click', e => { e.stopPropagation(); this.toggleAdmin(false); });
+    $('adminForm').addEventListener('submit', e => { e.preventDefault(); const v = $('adminInput').value.trim(); if (v) { this.runCmd(v); $('adminInput').value = ''; } });
+    $('adminInput').addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === '`') { e.preventDefault(); this.toggleAdmin(false); } });
+    document.querySelectorAll('#admin .quick button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); this.runCmd(b.dataset.cmd); }));
+    ['pointerdown', 'touchstart'].forEach(ev => $('admin').addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+  }
+  toggleAdmin(force) {
+    const el = document.getElementById('admin'), open = force ?? el.hidden;
+    el.hidden = !open; this.audio.play(open ? 'ui' : 'uiBack');
+    if (open && !this._adminGreeted) { this._adminGreeted = true; this.adminLog('Admin console. Type "help" for every command.', 'ok'); }
+  }
+  adminLog(text, cls) {
+    const log = document.getElementById('adminLog'), line = document.createElement('div');
+    if (cls) line.className = cls; line.textContent = text; log.appendChild(line);
+    while (log.children.length > 60) log.firstChild.remove();
+    log.scrollTop = log.scrollHeight;
+  }
+  ensureFlight() { if (!this.inFlight()) { if (this.state === 'pause') this.resume(); else { this.toMenu(); this.startRun(); } } }
+  runCmd(line) {
+    this.adminLog('> ' + line, 'cmd');
+    const [cmd, ...args] = line.trim().split(/\s+/), a0 = args[0], num = parseFloat(a0);
+    const ok = m => this.adminLog(m, 'ok'), err = m => { this.adminLog(m, 'err'); this.audio.play('deny'); };
+    const p = this.player;
+    switch ((cmd || '').toLowerCase().replace(/^\//, '')) {
+      case 'help': case '?':
+        this.adminLog([
+          'cash <n>          add cash (negative removes)',
+          'level <n|+n|-n>   set or change Level (in a run)',
+          'rate <shots/s>    set fire rate (in a run)',
+          'range <n>         set bullet range (in a run)',
+          'god               toggle invincibility',
+          'twin              refill and fire 2x Shot',
+          'killall           destroy every enemy on screen',
+          'skip <runway|sky|combat|boss|win>',
+          'stage <n>         jump to stage n (unlocks it)',
+          'unlock            unlock stages 1-50',
+          'maxup             set all upgrades to level 25',
+          'upgrade <power|rate|income> <lvl>',
+          'speed <0.25-4>    game speed multiplier',
+          'fps               toggle the fps counter',
+          'reset             wipe all progress',
+          'clear             clear this log',
+        ].join('\n')); break;
+      case 'cash':
+        if (!isFinite(num)) return err('Usage: cash 1000');
+        save.cash = Math.max(0, save.cash + Math.round(num)); persist(); this.refreshCards(); ok(`Cash is now ${save.cash}`); this.audio.play('buy'); break;
+      case 'level': {
+        if (!isFinite(num)) return err('Usage: level 500, level +100 or level -50');
+        if (!this.inFlight()) return err('Start a run first (or use "skip").');
+        const rel = /^[+-]/.test(a0), v = rel ? p.level + num : num;
+        this.setLevel(v, v >= p.level ? 'good' : 'bad'); ok(`Level is now ${p.level}`); break;
+      }
+      case 'rate':
+        if (!(num > 0)) return err('Usage: rate 10');
+        if (!this.inFlight()) return err('Start a run first.');
+        p.rate = clamp(num, 0.5, 40); ok(`Fire rate ${p.rate} shots/s`); break;
+      case 'range':
+        if (!(num > 0)) return err('Usage: range 1500');
+        if (!this.inFlight()) return err('Start a run first.');
+        p.range = clamp(num, 100, 5000); ok(`Range ${p.range}`); break;
+      case 'god':
+        this.admin.god = a0 === 'on' ? true : a0 === 'off' ? false : !this.admin.god;
+        document.getElementById('admGod').setAttribute('aria-pressed', this.admin.god);
+        document.getElementById('adminBadge').hidden = !this.admin.god;
+        ok(`God mode ${this.admin.god ? 'ON' : 'OFF'}`); break;
+      case 'twin':
+        if (!this.inFlight()) return err('Start a run first.');
+        p.twinUsed = true; p.twinT = 8; this.dom.twin.hidden = false; this.dom.twin.classList.add('active'); this.audio.play('twin'); ok('2x Shot active for 8s'); break;
+      case 'killall': case 'nuke': {
+        const n = this.enemies.filter(e => !e.dead).length;
+        if (!n) return err('No enemies on screen.');
+        for (const e of this.enemies) if (!e.dead) this.killEnemy(e);
+        ok(`Destroyed ${n} enem${n === 1 ? 'y' : 'ies'}`); break;
+      }
+      case 'skip': {
+        const to = (a0 || '').toLowerCase();
+        if (!['runway', 'sky', 'combat', 'waves', 'boss', 'win'].includes(to)) return err('Usage: skip runway | sky | combat | boss | win');
+        if (to === 'runway') { this.toMenu(); this.startRun(); return ok('Restarted on the runway'); }
+        this.ensureFlight();
+        this.bullets.length = 0; this.eBullets.length = 0;
+        for (const g of this.gates) g.passed = true;
+        if (to === 'sky') {
+          this.dist = TRACK.FINISH; this.setState('takeoff'); this.audio.play('takeoff'); return ok('Skipped to takeoff → sky');
+        }
+        for (const r of this.rings) { r.used = true; r.fade = 0; }
+        this.alt = 1; this.dist = Math.max(this.dist, TRACK.SKY_END);
+        if (!this.player.twinUsed) { this.dom.twin.hidden = false; this.dom.twin.classList.remove('active'); this.dom.twinTxt.textContent = '2x Shot'; }
+        if (to === 'combat' || to === 'waves') {
+          this.enemies.length = 0; this.boss = null; this.dom.bossWrap.hidden = true;
+          this.setState('combat'); this.wave = 0; this.spawnWave(); return ok('Skipped to wave 1');
+        }
+        if (to === 'boss') {
+          this.enemies.length = 0; this.boss = null; this.wave = 3; this.setState('boss'); this.spawnBoss(); return ok('Skipped to the boss');
+        }
+        // win
+        this.enemies.length = 0; this.boss = null; this.win(); return ok('Stage cleared');
+      }
+      case 'stage': {
+        const n = Math.round(num);
+        if (!(n >= 1 && n <= 999)) return err('Usage: stage 5');
+        save.stage = n; save.maxStage = Math.max(save.maxStage || 1, n); persist();
+        this.toMenu(); ok(`Now on ${theme().name} · stage ${n}`); break;
+      }
+      case 'unlock':
+        save.maxStage = Math.max(save.maxStage || 1, 50); persist(); this.refreshStage(); ok('Stages 1-50 unlocked'); break;
+      case 'maxup':
+        save.power = save.rate = save.income = 25; persist(); this.refreshCards(); ok('Power, Fire rate and Income set to 25 (applies next run)'); this.audio.play('buy'); break;
+      case 'upgrade': {
+        const key = (a0 || '').toLowerCase(), lv = Math.round(parseFloat(args[1]));
+        if (!['power', 'rate', 'income'].includes(key) || !(lv >= 1 && lv <= 200)) return err('Usage: upgrade power 10');
+        save[key] = lv; persist(); this.refreshCards(); ok(`${key} upgrade set to ${lv} (applies next run)`); break;
+      }
+      case 'speed':
+        if (!(num > 0)) return err('Usage: speed 2');
+        this.admin.speed = clamp(num, 0.25, 4); ok(`Game speed ×${this.admin.speed}`); break;
+      case 'fps':
+        this.fps.on = !this.fps.on; this.dom.fps.hidden = !this.fps.on; ok(`FPS counter ${this.fps.on ? 'on' : 'off'}`); break;
+      case 'reset':
+        if (a0 !== 'confirm') return err('This wipes all progress. Type "reset confirm" to do it.');
+        Object.assign(save, { cash: 0, stage: 1, maxStage: 1, power: 1, rate: 1, income: 1 }); persist(); this.toMenu(); ok('Progress reset'); break;
+      case 'clear': document.getElementById('adminLog').innerHTML = ''; break;
+      default: err(`Unknown command "${cmd}". Type "help".`);
+    }
   }
   pickStage(delta) {
     const next = clamp(save.stage + delta, 1, save.maxStage);
@@ -1067,12 +1239,13 @@ class Game {
   flashRed() { this.dom.flash.style.opacity = 1; setTimeout(() => { this.dom.flash.style.opacity = 0; }, 140); }
 
   setLevel(v, kind) {
-    const p = this.player; p.level = Math.max(0, Math.round(v)); p.tagPulse = 1;
+    const p = this.player; p.level = Math.max(this.admin.god ? 1 : 0, Math.round(v)); p.tagPulse = 1;
     if (kind === 'bad') p.hurtT = 1;
     if (p.level <= 0) this.die();
   }
   hurt(n) {
     const p = this.player; if (p.invuln > 0 || !this.inFlight()) return;
+    if (this.admin.god) { this.floatText(p.x, p.screenY - 50, 'BLOCKED', PALETTE.amber, 18); p.invuln = 0.3; return; }
     p.invuln = 0.6;
     this.floatText(p.x, p.screenY - 50, '-' + n, PALETTE.danger, 26);
     this.particles.burst(p.x, p.screenY, { n: 30, speed: [100, 420], colors: [PALETTE.danger, PALETTE.amber, PALETTE.white], sparks: 14 });
@@ -1515,8 +1688,9 @@ class Game {
   // ---------- loop ----------
   loop(now) {
     requestAnimationFrame(this.loop);
-    const frame = Math.min(CONFIG.MAX_FRAME, Math.max(0, (now - this.last) / 1000)); this.last = now;
+    const frame = Math.min(CONFIG.MAX_FRAME, Math.max(0, (now - this.last) / 1000)) * this.admin.speed; this.last = now;
     if (this.input.wasPressed('p') || this.input.wasPressed('escape')) this.state === 'pause' ? this.resume() : this.pause();
+    if (this.input.wasPressed('`') || this.input.wasPressed('~')) this.toggleAdmin();
     if (this.input.wasPressed('f')) { this.fps.on = !this.fps.on; this.dom.fps.hidden = !this.fps.on; }
     if ((this.input.wasPressed('enter') || this.input.wasPressed(' ')) && this.state === 'menu') this.startRun();
     if (this.state === 'menu' && this.input.wasPressed('arrowleft') && save.stage > 1) this.pickStage(-1);
