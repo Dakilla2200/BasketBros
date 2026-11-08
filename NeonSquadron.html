@@ -108,17 +108,17 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 .stageSel .info.swap{animation:swap .35s var(--ease-out)}
 @keyframes swap{from{opacity:0;transform:translateY(6px)}}
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.card{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px 8px;border-radius:var(--r-md);background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--glass-edge) inset;transition:transform .18s var(--ease-out),box-shadow .25s}
+.card{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 5px 6px;min-width:0;border-radius:var(--r-md);background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--glass-edge) inset;transition:transform .18s var(--ease-out),box-shadow .25s}
 .card:hover{box-shadow:0 0 0 1px var(--cyan) inset,0 0 18px rgba(41,243,255,.3)}
 .card:active{transform:scale(.95)}
 .card .nm{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
-.card .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-size:20px;position:relative}
+.card .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-size:17px;position:relative}
 .card .ic .lv{position:absolute;right:-8px;top:-6px;min-width:20px;padding:1px 5px;border-radius:7px;font-size:11px;background:var(--violet);box-shadow:0 0 10px rgba(123,77,255,.8)}
 .ic.i1{background:radial-gradient(circle at 35% 30%,#bff9ff,var(--cyan) 45%,#0a5e8a);box-shadow:0 0 18px rgba(41,243,255,.55)}
 .ic.i2{background:radial-gradient(circle at 35% 30%,#ffd1f6,var(--magenta) 45%,#6a0a5c);box-shadow:0 0 18px rgba(255,43,214,.55)}
 .ic.i3{background:radial-gradient(circle at 35% 30%,#eaffdf,var(--lime) 45%,#17703a);box-shadow:0 0 18px rgba(141,255,90,.5)}
 .card .val{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
-.card .cost{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 0;border-radius:8px;font-family:var(--display);font-size:15px;background:linear-gradient(180deg,rgba(141,255,90,.25),rgba(141,255,90,.08));box-shadow:0 0 0 1px rgba(141,255,90,.45) inset;font-variant-numeric:tabular-nums}
+.card .cost{width:100%;display:flex;align-items:center;justify-content:center;gap:5px;padding:4px 0;border-radius:8px;font-family:var(--display);font-size:14px;background:linear-gradient(180deg,rgba(141,255,90,.25),rgba(141,255,90,.08));box-shadow:0 0 0 1px rgba(141,255,90,.45) inset;font-variant-numeric:tabular-nums}
 .card .cost .chip{width:10px;height:10px}
 .card.poor{opacity:.55}
 .card.poor .cost{background:rgba(255,255,255,.05);box-shadow:0 0 0 1px rgba(255,255,255,.15) inset}
@@ -150,6 +150,15 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 #adminForm button{padding:0 14px;border-radius:9px;font-family:var(--display);background:linear-gradient(100deg,var(--amber),var(--magenta));color:#fff}
 #adminBadge{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(60px + env(safe-area-inset-top,0px));padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--amber);text-transform:uppercase}
 @media (prefers-reduced-motion: reduce){.title{animation:none}.overlay.show .panel{animation-duration:.01s}}
+.ic.i4{background:radial-gradient(circle at 35% 30%,#fff1cf,var(--amber) 45%,#7a4a00);box-shadow:0 0 18px rgba(255,181,58,.5)}
+.ic.i5{background:radial-gradient(circle at 35% 30%,#e3d9ff,var(--violet) 45%,#2a0f7a);box-shadow:0 0 18px rgba(123,77,255,.55)}
+.ic.i6{background:radial-gradient(circle at 35% 30%,#ffd0dc,var(--danger) 45%,#6a0a24);box-shadow:0 0 18px rgba(255,59,107,.5)}
+.card .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.card .val{white-space:nowrap;font-size:11px}
+.card.maxed .cost{background:rgba(255,255,255,.06);box-shadow:0 0 0 1px rgba(255,181,58,.5) inset;color:var(--amber)}
+.card.maxed{opacity:.85}
+@media (max-height:900px){.panel>.sub{display:none}.title{font-size:clamp(32px,9vw,44px)}}
+@media (max-height:760px){#soundTip{display:none}.title{font-size:30px}#menu .panel{gap:9px;padding:14px 12px 12px}.card{gap:3px;padding:6px 4px 5px}.card .ic{width:30px;height:30px;font-size:14px}.stageSel .nm{font-size:17px}.stageSel .arr{height:40px}#menu .btn{padding:11px 16px}#menu .overlay,#menu{padding-block:calc(58px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-bottom,0px))}}
 @media (max-height:640px){.title{font-size:34px}.panel{gap:10px;padding:16px 14px 14px}}
 </style>
 
@@ -178,11 +187,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
       <div class="info" id="stageInfo"><span class="nm" id="stageName">SYNTH · STAGE 1</span><span class="meta mod" id="stageMod">Boss: Mothership</span><span class="meta" id="stageMeta">Highest reached: 1</span></div>
       <button class="arr" id="stageNext" aria-label="Next stage">›</button>
     </div>
-    <div class="cards">
-      <button class="card" id="upPower"><span class="nm">Power</span><span class="ic i1">▲<span class="lv">1</span></span><span class="val"></span><span class="cost"><span class="n">0</span><i class="chip"></i></span></button>
-      <button class="card" id="upRate"><span class="nm">Fire rate</span><span class="ic i2">⁞<span class="lv">1</span></span><span class="val"></span><span class="cost"><span class="n">0</span><i class="chip"></i></span></button>
-      <button class="card" id="upIncome"><span class="nm">Income</span><span class="ic i3">◆<span class="lv">1</span></span><span class="val"></span><span class="cost"><span class="n">0</span><i class="chip"></i></span></button>
-    </div>
+    <div class="cards" id="cards"></div>
     <button class="btn" id="startBtn">LAUNCH</button>
     <div class="toggles">
       <button class="tog" id="sfxTog" aria-pressed="true">SFX <span class="pill"></span></button>
@@ -307,7 +312,29 @@ const save = { cash: 0, stage: 1, power: 1, rate: 1, income: 1, sfx: true, music
 try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
 save.maxStage = Math.max(save.maxStage || 1, save.stage);
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
-const upCost = l => Math.floor(50 * Math.pow(1.32, l - 1));
+// Hangar upgrades: base cost, cost growth per level, max level (0 = no cap)
+const UPGRADES = [
+  { key: 'power',  name: 'Power',     icon: '▲', cls: 'i1', base: 50,  grow: 1.32, max: 0,  val: () => `Start Lv ${startLevel()}` },
+  { key: 'rate',   name: 'Fire rate', icon: '⁞', cls: 'i2', base: 50,  grow: 1.32, max: 0,  val: () => `${baseRate().toFixed(1)} shots/s` },
+  { key: 'income', name: 'Income',    icon: '◆', cls: 'i3', base: 50,  grow: 1.32, max: 0,  val: () => `×${incomeMult().toFixed(1)} cash` },
+  { key: 'armor',  name: 'Armor',     icon: '⬢', cls: 'i4', base: 80,  grow: 1.40, max: 16, val: () => `-${Math.round(armorCut() * 100)}% damage` },
+  { key: 'range',  name: 'Range',     icon: '↟', cls: 'i5', base: 60,  grow: 1.35, max: 21, val: () => `${baseRange()} range` },
+  { key: 'magnet', name: 'Magnet',    icon: '⊛', cls: 'i3', base: 60,  grow: 1.35, max: 11, val: () => `${magnetRadius()} pickup` },
+  { key: 'twin',   name: '2x Shot',   icon: '⇶', cls: 'i4', base: 90,  grow: 1.45, max: 11, val: () => `${twinTime()}s burst` },
+  { key: 'boost',  name: 'Boost',     icon: '✚', cls: 'i1', base: 100, grow: 1.42, max: 16, val: () => `+${Math.round((boostMult() - 1) * 100)}% bonuses` },
+  { key: 'shield', name: 'Shield',    icon: '◎', cls: 'i6', base: 200, grow: 1.90, max: 6,  val: () => `${shieldCharges()} block${shieldCharges() === 1 ? '' : 's'}/run` },
+];
+const UPG = Object.fromEntries(UPGRADES.map(u => [u.key, u]));
+const upLevel = k => save[k] || 1;
+const upCost = (l, k = 'power') => Math.floor(UPG[k].base * Math.pow(UPG[k].grow, l - 1));
+const upMaxed = k => UPG[k].max > 0 && upLevel(k) >= UPG[k].max;
+const armorCut = () => Math.min(0.6, 0.04 * (upLevel('armor') - 1));
+const baseRange = () => Math.round(840 * (1 + 0.05 * (upLevel('range') - 1)));
+const magnetRadius = () => 46 + 12 * (upLevel('magnet') - 1);
+const twinTime = () => +(8 + 1.5 * (upLevel('twin') - 1)).toFixed(1);
+const boostMult = () => 1 + 0.05 * (upLevel('boost') - 1);
+const shieldCharges = () => upLevel('shield') - 1;
+const RESET_SAVE = { cash: 0, stage: 1, maxStage: 1, power: 1, rate: 1, income: 1, armor: 1, range: 1, magnet: 1, twin: 1, boost: 1, shield: 1 };
 const startLevel = () => 10 + 8 * (save.power - 1);
 const baseRate = () => 5 + 0.4 * (save.rate - 1);
 const incomeMult = () => 1 + 0.2 * (save.income - 1);
@@ -773,7 +800,7 @@ class Player extends Entity {
   constructor(game) { super({ sprite: SPRITES.player }); this.game = game; this.reset(); }
   reset() {
     this.x = 0; this.tx = 0; this.vx = 0; this.bank = 0; this.squash = 0; this.pitch = 0;
-    this.level = startLevel(); this.rate = baseRate(); this.range = 840;
+    this.level = startLevel(); this.rate = baseRate(); this.range = baseRange(); this.shield = shieldCharges(); this.shieldFx = 0;
     this.fireT = 0.3; this.invuln = 0; this.trailT = 0; this.dragStamp = -1; this.dragOrigin = 0;
     this.twinT = 0; this.twinUsed = false; this.tagPulse = 0; this.hurtT = 0;
   }
@@ -1015,12 +1042,12 @@ class Game {
     click('resBtn', () => this.toMenu());
     click('twin', () => {
       const p = this.player; if (p.twinUsed || !this.inFlight()) return;
-      p.twinUsed = true; p.twinT = 8; this.dom.twin.classList.add('active'); this.audio.play('twin');
+      p.twinUsed = true; p.twinT = twinTime(); this.dom.twin.classList.add('active'); this.audio.play('twin');
     });
     let armed = false;
     click('resetBtn', () => {
       if (!armed) { armed = true; $('resetBtn').textContent = 'Tap again to confirm'; setTimeout(() => { armed = false; $('resetBtn').textContent = 'Reset progress'; }, 2500); return; }
-      Object.assign(save, { cash: 0, stage: 1, maxStage: 1, power: 1, rate: 1, income: 1 }); persist(); armed = false;
+      Object.assign(save, RESET_SAVE); persist(); armed = false;
       $('resetBtn').textContent = 'Reset progress'; this.show(this.dom.pause, false); this.toMenu();
     });
     const sync = () => {
@@ -1035,16 +1062,20 @@ class Game {
     ['sfxTog', 'sfxTog2'].forEach(id => click(id, toggle('sfx')));
     ['musTog', 'musTog2'].forEach(id => click(id, toggle('music')));
     sync();
-    this.cards = [
-      { el: $('upPower'), key: 'power', val: () => `Start Lv ${startLevel()}` },
-      { el: $('upRate'), key: 'rate', val: () => `${baseRate().toFixed(1)} shots/s` },
-      { el: $('upIncome'), key: 'income', val: () => `×${incomeMult().toFixed(1)} cash` },
-    ];
+    const grid = $('cards');
+    this.cards = UPGRADES.map(u => {
+      const el = document.createElement('button'); el.className = 'card'; el.id = 'up-' + u.key;
+      el.innerHTML = `<span class="nm"></span><span class="ic ${u.cls}"><span class="g"></span><span class="lv">1</span></span><span class="val"></span><span class="cost"><span class="n">0</span><i class="chip"></i></span>`;
+      el.querySelector('.nm').textContent = u.name; el.querySelector('.g').textContent = u.icon;
+      grid.appendChild(el);
+      return { el, key: u.key, val: u.val };
+    });
     for (const c of this.cards) c.el.addEventListener('click', e => {
       e.stopPropagation();
-      const cost = upCost(save[c.key]);
+      if (upMaxed(c.key)) { this.audio.play('deny'); return; }
+      const cost = upCost(upLevel(c.key), c.key);
       if (save.cash < cost) { this.audio.play('deny'); return; }
-      save.cash -= cost; save[c.key]++; persist(); this.audio.play('buy');
+      save.cash -= cost; save[c.key] = upLevel(c.key) + 1; persist(); this.audio.play('buy');
       c.el.classList.remove('buy'); void c.el.offsetWidth; c.el.classList.add('buy');
       this.refreshCards();
     });
@@ -1095,8 +1126,8 @@ class Game {
           'skip <runway|sky|combat|boss|win>',
           'stage <n>         jump to stage n (unlocks it)',
           'unlock            unlock stages 1-50',
-          'maxup             set all upgrades to level 25',
-          'upgrade <power|rate|income> <lvl>',
+          'maxup             max every upgrade',
+          'upgrade <name> <lvl>  power rate income armor range magnet twin boost shield',
           'speed <0.25-4>    game speed multiplier',
           'fps               toggle the fps counter',
           'reset             wipe all progress',
@@ -1126,7 +1157,7 @@ class Game {
         ok(`God mode ${this.admin.god ? 'ON' : 'OFF'}`); break;
       case 'twin':
         if (!this.inFlight()) return err('Start a run first.');
-        p.twinUsed = true; p.twinT = 8; this.dom.twin.hidden = false; this.dom.twin.classList.add('active'); this.audio.play('twin'); ok('2x Shot active for 8s'); break;
+        p.twinUsed = true; p.twinT = twinTime(); this.dom.twin.hidden = false; this.dom.twin.classList.add('active'); this.audio.play('twin'); ok(`2x Shot active for ${twinTime()}s`); break;
       case 'killall': case 'nuke': {
         const n = this.enemies.filter(e => !e.dead).length;
         if (!n) return err('No enemies on screen.');
@@ -1165,10 +1196,10 @@ class Game {
       case 'unlock':
         save.maxStage = Math.max(save.maxStage || 1, 50); persist(); this.refreshStage(); ok('Stages 1-50 unlocked'); break;
       case 'maxup':
-        save.power = save.rate = save.income = 25; persist(); this.refreshCards(); ok('Power, Fire rate and Income set to 25 (applies next run)'); this.audio.play('buy'); break;
+        for (const u of UPGRADES) save[u.key] = u.max || 25; persist(); this.refreshCards(); ok('Every upgrade maxed (uncapped ones set to 25); applies next run'); this.audio.play('buy'); break;
       case 'upgrade': {
         const key = (a0 || '').toLowerCase(), lv = Math.round(parseFloat(args[1]));
-        if (!['power', 'rate', 'income'].includes(key) || !(lv >= 1 && lv <= 200)) return err('Usage: upgrade power 10');
+        if (!UPG[key] || !(lv >= 1 && lv <= (UPG[key].max || 200))) return err(`Usage: upgrade <${UPGRADES.map(u => u.key).join('|')}> <level>`);
         save[key] = lv; persist(); this.refreshCards(); ok(`${key} upgrade set to ${lv} (applies next run)`); break;
       }
       case 'speed':
@@ -1178,7 +1209,7 @@ class Game {
         this.fps.on = !this.fps.on; this.dom.fps.hidden = !this.fps.on; ok(`FPS counter ${this.fps.on ? 'on' : 'off'}`); break;
       case 'reset':
         if (a0 !== 'confirm') return err('This wipes all progress. Type "reset confirm" to do it.');
-        Object.assign(save, { cash: 0, stage: 1, maxStage: 1, power: 1, rate: 1, income: 1 }); persist(); this.toMenu(); ok('Progress reset'); break;
+        Object.assign(save, RESET_SAVE); persist(); this.toMenu(); ok('Progress reset'); break;
       case 'clear': document.getElementById('adminLog').innerHTML = ''; break;
       default: err(`Unknown command "${cmd}". Type "help".`);
     }
@@ -1203,9 +1234,10 @@ class Game {
   }
   refreshCards() {
     for (const c of this.cards) {
-      const lvl = save[c.key], cost = upCost(lvl);
-      c.el.querySelector('.lv').textContent = lvl; c.el.querySelector('.val').textContent = c.val(); c.el.querySelector('.n').textContent = cost;
-      c.el.classList.toggle('poor', save.cash < cost);
+      const lvl = upLevel(c.key), maxed = upMaxed(c.key), cost = upCost(lvl, c.key);
+      c.el.querySelector('.lv').textContent = maxed ? 'MAX' : lvl; c.el.querySelector('.val').textContent = c.val(); c.el.querySelector('.n').textContent = maxed ? 'MAX' : cost;
+      c.el.querySelector('.chip').hidden = maxed;
+      c.el.classList.toggle('maxed', maxed); c.el.classList.toggle('poor', !maxed && save.cash < cost);
     }
   }
   show(el, on) { el.classList.toggle('show', on); }
@@ -1360,6 +1392,13 @@ class Game {
   hurt(n) {
     const p = this.player; if (p.invuln > 0 || !this.inFlight()) return;
     if (this.admin.god) { this.floatText(p.x, p.screenY - 50, 'BLOCKED', PALETTE.amber, 18); p.invuln = 0.3; return; }
+    if (p.shield > 0) {
+      p.shield--; p.invuln = 0.8; p.shieldFx = 1;
+      this.floatText(p.x, p.screenY - 50, 'SHIELD', PALETTE.cyan, 22);
+      this.shockwave(p.x, p.screenY, PALETTE.cyan, 110); this.audio.play('twin'); this.impact(0.25, 0);
+      return;
+    }
+    n = Math.max(1, Math.round(n * (1 - armorCut())));
     p.invuln = 0.6;
     this.floatText(p.x, p.screenY - 50, '-' + n, PALETTE.danger, 26);
     this.particles.burst(p.x, p.screenY, { n: 30, speed: [100, 420], colors: [PALETTE.danger, PALETTE.amber, PALETTE.white], sparks: 14 });
@@ -1498,7 +1537,7 @@ class Game {
         const h = pair.halves.find(q => p.x >= q.x0 && p.x < q.x1) || pair.halves[p.x < 0 ? 0 : pair.halves.length - 1];
         const sp = this.proj((h.x0 + h.x1) / 2, 0);
         if (h.op === 'x') { this.setLevel(p.level * 2, 'good'); this.floatText(p.x, p.screenY - 60, '×2', PALETTE.cyan, 30); this.audio.play('mult'); }
-        else if (h.val >= 0) { this.setLevel(p.level + h.val, 'good'); this.floatText(p.x, p.screenY - 60, '+' + h.val, PALETTE.cyan, 30); this.audio.play('gateGood'); }
+        else if (h.val >= 0) { const gv = Math.round(h.val * boostMult()); this.setLevel(p.level + gv, 'good'); this.floatText(p.x, p.screenY - 60, '+' + gv, PALETTE.cyan, 30); this.audio.play('gateGood'); }
         else { this.floatText(p.x, p.screenY - 60, String(h.val), PALETTE.danger, 30); this.audio.play('gateBad'); this.impact(0.35); this.flashRed(); this.setLevel(p.level + h.val, 'bad'); }
         const good = h.op === 'x' || h.val >= 0;
         this.particles.burst(sp.x, sp.y - 60, { n: 50, speed: [100, 400], colors: good ? [PALETTE.cyan, PALETTE.white, PALETTE.blue] : [PALETTE.danger, PALETTE.magenta], sparks: 16 });
@@ -1526,7 +1565,9 @@ class Game {
       c.spin += dt * 5;
       if (c.got || st !== 'runway') continue;
       const d = c.tz - this.dist;
-      if (Math.abs(d) < 30 && Math.abs(p.x - c.x) < 46) {
+      const mag = magnetRadius();
+      if (mag > 46 && d < 260 && d > 0 && Math.abs(p.x - c.x) < mag * 1.6) c.x = damp(c.x, p.x, 4, dt); // magnet pull
+      if (Math.abs(d) < 30 && Math.abs(p.x - c.x) < mag) {
         c.got = true; const val = (2 + save.stage) * (this.mod && this.mod.id === 'goldrush' ? 1.6 : 1);
         this.runCash += val; this.audio.play('chip');
         this.particles.burst(c.x, p.screenY - 10, { n: 6, speed: [60, 200], life: [0.15, 0.35], size: [3, 6], colors: [PALETTE.lime, PALETTE.white] });
@@ -1542,7 +1583,7 @@ class Game {
       if ((st === 'sky' || st === 'takeoff') && r.tz - this.dist <= 0) {
         r.used = true;
         if (Math.abs(p.x - r.x) < r.R * 0.95) {
-          r.got = true; const v2 = r.val, good = v2 >= 0;
+          r.got = true; const good = r.val >= 0, v2 = good ? Math.round(r.val * boostMult()) : r.val;
           if (r.type === 'level') { this.floatText(p.x, p.screenY - 60, (good ? '+' : '') + v2 + ' LEVEL', good ? PALETTE.cyan : PALETTE.danger, 26); this.setLevel(p.level + v2, good ? 'good' : 'bad'); }
           else if (r.type === 'rate') { p.rate = Math.max(1.5, p.rate * (1 + v2 / 100)); this.floatText(p.x, p.screenY - 60, (good ? '+' : '') + v2 + '% RATE', good ? PALETTE.magenta : PALETTE.danger, 26); }
           else { p.range = Math.max(360, p.range + v2 * 16); this.floatText(p.x, p.screenY - 60, (good ? '+' : '') + v2 + ' RANGE', good ? PALETTE.lime : PALETTE.danger, 26); }
@@ -1758,6 +1799,15 @@ class Game {
     }
     if (this.state !== 'dead' && !(this.state === 'result' && p.level <= 0)) {
       p.render(ctx, t, p.x, p.screenY, p.size);
+      p.shieldFx = Math.max(0, p.shieldFx - 1 / 60);
+      if ((p.shield > 0 || p.shieldFx > 0) && this.inFlight()) {
+        const r = 48 * p.size * (1 + p.shieldFx * 0.4), y = p.screenY;
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = hexA(PALETTE.cyan, 0.16 + p.shieldFx * 0.5); ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(p.x, y, r, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = hexA('#bff9ff', 0.45 + p.shieldFx * 0.5); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, y, r, t * 2, t * 2 + Math.PI * 1.4); ctx.stroke();
+        for (let i = 0; i < p.shield; i++) { const a = -Math.PI / 2 + (i - (p.shield - 1) / 2) * 0.32; ctx.drawImage(GlowCache.dot(PALETTE.cyan), p.x + Math.cos(a) * r - 7, y + Math.sin(a) * r - 7, 14, 14); }
+        ctx.restore();
+      }
       if (this.inFlight() || this.state === 'won') this.drawTag(ctx, p);
     }
     // enemy bullets
