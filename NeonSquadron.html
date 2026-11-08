@@ -44,7 +44,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 #pauseBtn{pointer-events:auto;height:42px;display:grid;place-items:center;font-size:15px;letter-spacing:2px;transition:transform .15s,box-shadow .2s,opacity .3s}
 #pauseBtn:active{transform:scale(.92)}
 #hud:not(.live) #pauseBtn{opacity:0;pointer-events:none}
-#stagePill{pointer-events:auto;cursor:default;justify-self:center;padding:8px 16px;font-family:var(--display);font-size:15px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 0 12px rgba(41,243,255,.6)}
+#stagePill{pointer-events:auto;cursor:default;justify-self:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:0;padding:8px 14px;font-family:var(--display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 0 12px rgba(41,243,255,.6)}
 #cashPill{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 14px;font-family:var(--display);font-size:19px;font-variant-numeric:tabular-nums;color:#eaffdf;text-shadow:0 0 12px rgba(141,255,90,.7)}
 .chip{width:16px;height:16px;transform:rotate(45deg);border-radius:3px;background:linear-gradient(135deg,#eaffdf,var(--lime) 45%,#1fae5a);box-shadow:0 0 10px rgba(141,255,90,.9)}
 #cashPill.bump{animation:bump .25s var(--ease-out)}
@@ -282,7 +282,20 @@ const BOSSES = [
   { id: 'mothership', name: 'Mothership', hue: 320, hp: 1 },
   { id: 'warden',     name: 'Warden',     hue: 190, hp: 0.9 },
   { id: 'hive',       name: 'Hive Queen', hue: 95,  hp: 0.85 },
+  { id: 'colossus',   name: 'Colossus',   hue: 28,  hp: 1.15 },
+  { id: 'serpent',    name: 'Serpent',    hue: 168, hp: 0.95 },
 ];
+// Enemy roster: the stage each type first appears on
+const ENEMY_UNLOCK = { gunship: 1, dart: 2, weaver: 2, tank: 3, splitter: 3, lancer: 4, guardian: 4, bomber: 5, sniper: 5 };
+const FOE_NAMES = { gunship: 'Gunships', dart: 'Darts', weaver: 'Weavers', tank: 'Tanks', splitter: 'Splitters', lancer: 'Lancers', guardian: 'Guardians', bomber: 'Bombers', sniper: 'Snipers' };
+const FOE_HP = { dart: 0.45, tank: 2.6, splitter: 1.3, bomber: 1.5, guardian: 1.2, weaver: 0.9, sniper: 0.8, lancer: 1.4 };
+const FOE_CASH = { dart: 0.6, tank: 3, splitter: 1.5, bomber: 2, guardian: 2, weaver: 1, sniper: 1.5, lancer: 2 };
+function featuredFoe(st) {
+  if (st < 2) return null;
+  const pool = Object.keys(ENEMY_UNLOCK).filter(k => k !== 'gunship' && ENEMY_UNLOCK[k] <= st);
+  const fresh = pool.filter(k => ENEMY_UNLOCK[k] === st), r = mulberry32(st * 31337)();
+  return fresh.length ? fresh[Math.floor(r * fresh.length)] : pool[Math.floor(r * pool.length)];
+}
 const stageBoss = st => BOSSES[(st - 1) % BOSSES.length];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -298,10 +311,24 @@ const FONT = '"Russo One","Arial Black",sans-serif';
 
 const PALETTE = { cyan: '#29f3ff', magenta: '#ff2bd6', violet: '#7b4dff', amber: '#ffb53a', white: '#ffffff', danger: '#ff3b6b', lime: '#8dff5a', blue: '#2b6bff' };
 
+// Each biome changes sky, celestial body, floor, roadside scenery, weather, sky effects and music.
 const THEMES = [
-  { name: 'Synth',   sky: ['#05030d', '#1a0636', '#4b0c5e'], sun: ['#fff6b0', '#ffb53a', '#ff2bd6', '#7b4dff'], gridA: '#ff2bd6', gridB: '#29f3ff', floor: ['#1d0533', '#0d0320', '#05010c'] },
-  { name: 'Toxic',   sky: ['#020a08', '#06281f', '#0d4a3a'], sun: ['#f6ffb0', '#b6ff3a', '#2bffb4', '#1f7bff'], gridA: '#2bffb4', gridB: '#b6ff3a', floor: ['#03261c', '#021710', '#010a07'] },
-  { name: 'Inferno', sky: ['#0d0303', '#360a06', '#5e1a0c'], sun: ['#fff3c0', '#ffd23a', '#ff5a2b', '#c21a4d'], gridA: '#ff5a2b', gridB: '#ffd23a', floor: ['#330a05', '#1f0603', '#0c0201'] },
+  { name: 'Synth', sky: ['#05030d', '#1a0636', '#4b0c5e'], sun: ['#fff6b0', '#ffb53a', '#ff2bd6', '#7b4dff'], gridA: '#ff2bd6', gridB: '#29f3ff', floor: ['#1d0533', '#0d0320', '#05010c'],
+    celestial: 'sun', floorStyle: 'grid', props: 'pyramids', weather: null, fx: null, song: { tempo: 108, roots: [45, 41, 48, 43], arp: [0, 7, 12, 7, 3, 7, 12, 15] } },
+  { name: 'Neon City', sky: ['#02030c', '#0a1238', '#2a0f4a'], sun: ['#ffffff', '#e8eeff', '#b9c6ff', '#7d8cff'], gridA: '#ff2bd6', gridB: '#29f3ff', floor: ['#0d0b26', '#070616', '#030209'],
+    celestial: 'moon', floorStyle: 'grid', props: 'towers', weather: 'rain', fx: 'skyline', song: { tempo: 118, roots: [40, 43, 38, 45], arp: [0, 12, 7, 12, 0, 12, 10, 12] } },
+  { name: 'Toxic Marsh', sky: ['#020a08', '#06281f', '#0d4a3a'], sun: ['#f6ffb0', '#b6ff3a', '#2bffb4', '#1f7bff'], gridA: '#2bffb4', gridB: '#b6ff3a', floor: ['#03261c', '#021710', '#010a07'],
+    celestial: 'sun', floorStyle: 'dots', props: 'mushrooms', weather: 'spores', fx: null, song: { tempo: 100, roots: [38, 38, 41, 36], arp: [0, 3, 7, 10, 12, 10, 7, 3] } },
+  { name: 'Inferno Dunes', sky: ['#0d0303', '#360a06', '#6a200c'], sun: ['#fff3c0', '#ffd23a', '#ff5a2b', '#c21a4d'], gridA: '#ff5a2b', gridB: '#ffd23a', floor: ['#3a1206', '#220803', '#0c0201'],
+    celestial: 'sun', floorStyle: 'dunes', props: 'mesas', weather: 'embers', fx: null, song: { tempo: 96, roots: [40, 41, 40, 38], arp: [0, 1, 7, 8, 12, 8, 7, 1] } },
+  { name: 'Glacier', sky: ['#03070f', '#0b2440', '#2b5f7a'], sun: ['#ffffff', '#e6fbff', '#bdf3ff', '#7fe0ff'], gridA: '#7fe8ff', gridB: '#e6fbff', floor: ['#123248', '#0a1e2e', '#040b12'],
+    celestial: 'moon', floorStyle: 'ice', props: 'crystals', weather: 'snow', fx: 'aurora', song: { tempo: 92, roots: [47, 43, 45, 40], arp: [0, 7, 11, 14, 19, 14, 11, 7] } },
+  { name: 'Abyss', sky: ['#00040a', '#001a2a', '#00384a'], sun: ['#e0fffb', '#7ffff0', '#00e5c8', '#007a8a'], gridA: '#00e5c8', gridB: '#5af0ff', floor: ['#00202c', '#00121a', '#00060a'],
+    celestial: 'none', floorStyle: 'water', props: 'pillars', weather: 'bubbles', fx: 'rays', song: { tempo: 88, roots: [38, 45, 41, 43], arp: [0, 5, 7, 12, 7, 5, 0, -5] } },
+  { name: 'Thunderhead', sky: ['#05040a', '#14122a', '#2c2648'], sun: ['#fffbe0', '#ffe23a', '#b48cff', '#5a3aff'], gridA: '#ffe23a', gridB: '#b48cff', floor: ['#16122c', '#0a0816', '#04030a'],
+    celestial: 'none', floorStyle: 'grid', props: 'spires', weather: 'rain', fx: 'lightning', song: { tempo: 126, roots: [41, 41, 44, 39], arp: [0, 7, 12, 7, 0, 6, 12, 6] } },
+  { name: 'Cosmos', sky: ['#000000', '#0c0420', '#2a0a4a'], sun: ['#ffe6ff', '#ff9af0', '#b45aff', '#4a2aff'], gridA: '#b45aff', gridB: '#ff9af0', floor: ['#06021a', '#030110', '#000006'],
+    celestial: 'planet', floorStyle: 'void', props: 'asteroids', weather: null, fx: 'nebula', song: { tempo: 112, roots: [45, 48, 43, 41], arp: [0, 12, 19, 24, 19, 12, 7, 12] } },
 ];
 
 /* =====================================================================
@@ -408,6 +435,7 @@ class AudioEngine {
     this.seqTimer = setInterval(() => this.schedule(), 25);
   }
   get ok() { return this.ctx && this.ctx.state === 'running'; }
+  setSong(song) { this.song = song; }
   setSfx(on) { if (this.sfxBus) this.sfxBus.gain.setTargetAtTime(on ? 0.8 : 0, this.ctx.currentTime, 0.05); }
   setMusic(on) { if (this.musBus) this.musBus.gain.setTargetAtTime(on ? 0.3 : 0, this.ctx.currentTime, 0.15); }
   duck(amount, time) { if (!this.ok || !save.music) return; const g = this.musBus.gain, t = this.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(0.3 * amount, t); g.linearRampToValueAtTime(0.3, t + time); }
@@ -493,6 +521,11 @@ class AudioEngine {
         [392, 370, 349, 330].forEach((f, i) => this.osc('square', f, f, 0.16, 0.05, { t: 0.1 + i * 0.12, filter: 'lowpass' })); break;
       case 'chip': if (this.throttle('chip', 40)) return;
         this.osc('triangle', 1600 + rand(0, 400), 2400, 0.05, 0.035); break;
+      case 'thunder':
+        this.noise(1.6, 0.35, { f0: 900, f1: 60 }); this.noise(0.4, 0.25, { t: 0.05, type: 'highpass', f0: 4000, f1: 800 });
+        this.osc('sine', 70, 30, 1.4, 0.3); break;
+      case 'newfoe':
+        [659, 880, 1175].forEach((f, i) => this.osc('square', f, f, 0.1, 0.045, { t: i * 0.07, filter: 'lowpass' })); break;
       case 'warn':
         [0, 0.35, 0.7].forEach(t => { this.osc('square', 440, 440, 0.18, 0.05, { t, filter: 'lowpass' }); this.osc('square', 330, 330, 0.16, 0.05, { t: t + 0.18, filter: 'lowpass' }); }); break;
       case 'twin':
@@ -512,9 +545,9 @@ class AudioEngine {
 
   schedule() {
     const c = this.ctx; if (!c || c.state !== 'running') { if (c) this.nextTime = c.currentTime + 0.05; return; }
-    const spb = 60 / this.tempo / 4;
-    const roots = [45, 41, 48, 43];
-    const arp = [0, 7, 12, 7, 3, 7, 12, 15];
+    const song = this.song || THEMES[0].song;
+    const spb = 60 / song.tempo / 4;
+    const roots = song.roots, arp = song.arp;
     const midi = n => 440 * Math.pow(2, (n - 69) / 12);
     while (this.nextTime < c.currentTime + 0.12) {
       const s = this.step % 16, bar = Math.floor(this.step / 16) % 4, t = Math.max(0, this.nextTime - c.currentTime);
@@ -706,13 +739,24 @@ class ParticleSystem {
 /* =====================================================================
    9. BACKDROP — sky, sliced sun, projected ground grid, wire peaks
    ===================================================================== */
+const hash = (a, b = 0, c = 0) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 class Backdrop {
   constructor() {
     this.stars = Array.from({ length: 90 }, () => ({ x: rand(-1, 1), y: rand(0, 1), s: rand(0.4, 1.6), p: rand(0, TAU) }));
-    this.peaks = Array.from({ length: 22 }, (_, i) => ({ x: (i % 2 ? 1 : -1) * rand(300, 950), tz: rand(0, 6000), h: rand(260, 620), w: rand(220, 420) }));
+    this.props = Array.from({ length: 26 }, (_, i) => this.newProp(i, rand(0, 6000)));
+    this.wx = Array.from({ length: 90 }, () => ({ x: rand(-0.5, 0.5), y: rand(0, 1), v: rand(0.6, 1.4), s: rand(0.6, 1.4), p: rand(0, TAU) }));
+    this.voidStars = Array.from({ length: 60 }, () => ({ x: (Math.random() < .5 ? -1 : 1) * rand(60, 1300), d0: rand(0, D_FAR + 400) }));
+    this.bolt = null; this.flash = 0; this.nextBolt = 3;
     this.setTheme(THEMES[0]);
   }
-  setTheme(th) { this.th = th; this.sun = this.bakeSun(th); }
+  newProp(i, tz) { return { x: (i % 2 ? 1 : -1) * rand(320, 1000), tz, h: rand(260, 640), w: rand(200, 420), seed: Math.floor(rand(1, 1e6)), elev: rand(80, 300), rot: rand(0, TAU) }; }
+  setTheme(th) {
+    this.th = th;
+    this.sun = th.celestial === 'sun' ? this.bakeSun(th) : th.celestial === 'moon' ? this.bakeMoon(th) : th.celestial === 'planet' ? this.bakePlanet(th) : null;
+    this.skyline = th.fx === 'skyline' ? this.bakeSkyline(th) : null;
+    this.clouds = th.fx === 'lightning' ? this.bakeClouds(th) : null;
+    this.nebula = th.fx === 'nebula' ? this.bakeNebula(th) : null;
+  }
   bakeSun(th) {
     const r = 120, pad = 40, c = document.createElement('canvas'); c.width = c.height = (r + pad) * 2;
     const g = c.getContext('2d'), cx = r + pad;
@@ -722,6 +766,68 @@ class Backdrop {
     g.fillStyle = gr; g.beginPath(); g.arc(cx, cx, r, 0, TAU); g.fill();
     g.shadowBlur = 0; g.globalCompositeOperation = 'destination-out';
     for (let i = 0; i < 7; i++) { const y = cx + 8 + i * i * 2.6 + i * 6; g.fillRect(0, y, c.width, 2 + i * 1.3); }
+    c.yOff = -0.62; return c;
+  }
+  bakeMoon(th) {
+    const r = 62, pad = 50, c = document.createElement('canvas'); c.width = c.height = (r + pad) * 2;
+    const g = c.getContext('2d'), cx = r + pad;
+    g.shadowBlur = 50; g.shadowColor = th.sun[3];
+    const gr = g.createRadialGradient(cx - 20, cx - 20, 5, cx, cx, r);
+    gr.addColorStop(0, th.sun[0]); gr.addColorStop(0.6, th.sun[1]); gr.addColorStop(1, th.sun[2]);
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cx, r, 0, TAU); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = 'rgba(80,90,140,.18)';
+    for (const [x, y, rr] of [[-18, -10, 14], [16, 14, 10], [8, -26, 7], [-10, 24, 8], [26, -6, 6]]) { g.beginPath(); g.arc(cx + x, cx + y, rr, 0, TAU); g.fill(); }
+    c.yOff = -1.25; return c;
+  }
+  bakePlanet(th) {
+    const r = 110, W = 420, H = 300, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'), cx = W / 2, cy = H / 2;
+    const ring = (front) => { g.save(); g.translate(cx, cy); g.rotate(-0.32); g.beginPath(); g.ellipse(0, 0, r * 1.75, r * 0.42, 0, front ? 0 : Math.PI, front ? Math.PI : TAU); g.lineWidth = 9; g.strokeStyle = hexA(th.sun[1], 0.55); g.stroke(); g.lineWidth = 2; g.strokeStyle = hexA('#ffffff', 0.6); g.stroke(); g.restore(); };
+    ring(false);
+    g.shadowBlur = 50; g.shadowColor = th.sun[2];
+    const gr = g.createRadialGradient(cx - 40, cy - 40, 10, cx, cy, r);
+    gr.addColorStop(0, th.sun[0]); gr.addColorStop(0.45, th.sun[2]); gr.addColorStop(1, th.sun[3]);
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill(); g.shadowBlur = 0;
+    g.save(); g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.clip(); g.globalAlpha = 0.18; g.fillStyle = '#ffffff';
+    for (let i = 0; i < 6; i++) g.fillRect(cx - r, cy - r + 20 + i * 34, r * 2, 6 + (i % 3) * 4);
+    g.restore();
+    ring(true);
+    c.yOff = -0.95; return c;
+  }
+  bakeSkyline(th) {
+    const W = 1600, H = 150, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'); let x = 0, i = 0;
+    while (x < W) {
+      const w = 24 + hash(i, 1) * 50, h = 30 + hash(i, 2) * 115; i++;
+      g.fillStyle = '#07061a'; g.fillRect(x, H - h, w, h);
+      g.fillStyle = hexA(th.gridA, 0.5); g.fillRect(x, H - h, w, 1.5);
+      for (let wy = H - h + 6; wy < H - 4; wy += 8) for (let wx = x + 4; wx < x + w - 4; wx += 7) {
+        const k = hash(wx | 0, wy | 0, i); if (k > 0.62) { g.fillStyle = k > 0.9 ? hexA(th.gridA, 0.9) : k > 0.8 ? hexA(th.gridB, 0.8) : 'rgba(255,214,140,.55)'; g.fillRect(wx, wy, 3, 4); }
+      }
+      if (hash(i, 3) > 0.7) { g.fillStyle = '#ff3b6b'; g.fillRect(x + w / 2 - 1, H - h - 10, 2, 10); }
+      x += w + 2 + hash(i, 4) * 6;
+    }
+    return c;
+  }
+  bakeClouds(th) {
+    const W = 1600, H = 260, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    for (let i = 0; i < 70; i++) {
+      const x = hash(i, 7) * W, y = hash(i, 8) * H * 0.75, r = 60 + hash(i, 9) * 140;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, `rgba(${40 + hash(i, 10) * 30 | 0},${34 + hash(i, 11) * 24 | 0},${70 + hash(i, 12) * 40 | 0},.55)`); gr.addColorStop(1, 'rgba(20,16,40,0)');
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    return c;
+  }
+  bakeNebula(th) {
+    const W = 1200, H = 420, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    for (let i = 0; i < 14; i++) {
+      const x = hash(i, 21) * W, y = hash(i, 22) * H, r = 120 + hash(i, 23) * 220, col = i % 3 === 0 ? th.gridA : i % 3 === 1 ? th.gridB : '#2a6bff';
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, hexA(col, 0.22)); gr.addColorStop(1, hexA(col, 0));
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
     return c;
   }
   render(ctx, game, t) {
@@ -729,65 +835,283 @@ class Backdrop {
     const sky = ctx.createLinearGradient(0, 0, 0, hz);
     sky.addColorStop(0, th.sky[0]); sky.addColorStop(0.55, th.sky[1]); sky.addColorStop(1, th.sky[2]);
     ctx.fillStyle = sky; ctx.fillRect(x0, -40, W, hz + 41);
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const dot = GlowCache.dot('#b9c9ff');
-    for (const s of this.stars) {
-      ctx.globalAlpha = (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 2 + s.p))) * (1 - s.y * 0.8);
-      const sx = s.x * W / 2 + px * 0.6, sy = s.y * hz * 0.92, r = s.s * 3;
-      ctx.drawImage(dot, sx - r, sy - r, r * 2, r * 2);
+    if (this.nebula) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(this.nebula, px * 0.3 - this.nebula.width / 2, -60 + Math.sin(t * 0.1) * 6); ctx.restore(); }
+    if (th.fx !== 'lightning') {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const dot = GlowCache.dot('#b9c9ff'), nS = th.fx === 'skyline' ? 40 : th.fx === 'nebula' ? 90 : 70;
+      for (let i = 0; i < nS; i++) {
+        const s = this.stars[i];
+        ctx.globalAlpha = (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 2 + s.p))) * (1 - s.y * 0.8);
+        const sx = s.x * W / 2 + px * 0.6, sy = s.y * hz * 0.92, r = s.s * 3;
+        ctx.drawImage(dot, sx - r, sy - r, r * 2, r * 2);
+      }
+      ctx.restore();
     }
-    ctx.restore();
-    ctx.save(); ctx.globalCompositeOperation = 'screen';
-    const sunS = this.sun.width; ctx.globalAlpha = 0.95;
-    ctx.drawImage(this.sun, px * 0.6 - sunS / 2, hz - sunS * 0.62 + Math.sin(t * 0.4) * 3, sunS, sunS);
-    ctx.restore();
+    if (th.fx === 'aurora') this.drawAurora(ctx, v, t, x0, W);
+    if (this.sun) {
+      ctx.save(); ctx.globalCompositeOperation = 'screen';
+      const sw = this.sun.width, sh = this.sun.height; ctx.globalAlpha = 0.95;
+      ctx.drawImage(this.sun, px * 0.6 - sw / 2 + (th.celestial === 'moon' ? 90 : th.celestial === 'planet' ? -60 : 0), hz + sh * this.sun.yOff + Math.sin(t * 0.4) * 3);
+      ctx.restore();
+    }
+    if (this.clouds) {
+      ctx.save(); ctx.globalAlpha = 1; ctx.drawImage(this.clouds, px * 0.4 - this.clouds.width / 2, -30, this.clouds.width, hz + 40); ctx.restore();
+    }
+    if (th.fx === 'lightning') this.drawLightning(ctx, game, t, x0, W);
+    if (this.skyline) { ctx.drawImage(this.skyline, px * 0.5 - this.skyline.width / 2, hz - this.skyline.height + 4); }
+    if (th.fx === 'rays') {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 5; i++) {
+        const cx = (i - 2) * 140 + Math.sin(t * 0.2 + i) * 40 + px * 0.4, a = 0.05 + 0.03 * Math.sin(t * 0.7 + i * 2);
+        const g = ctx.createLinearGradient(0, -40, 0, hz + 120); g.addColorStop(0, hexA(th.gridB, a * 2)); g.addColorStop(1, hexA(th.gridB, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx - 20, -40); ctx.lineTo(cx + 20, -40); ctx.lineTo(cx + 90, hz + 120); ctx.lineTo(cx - 50, hz + 120); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
     const floor = ctx.createLinearGradient(0, hz, 0, H);
     floor.addColorStop(0, th.floor[0]); floor.addColorStop(0.35, th.floor[1]); floor.addColorStop(1, th.floor[2]);
     ctx.fillStyle = floor; ctx.fillRect(x0, hz, W, H - hz + 40);
     const haze = ctx.createLinearGradient(0, hz - 26, 0, hz + 50);
-    haze.addColorStop(0, hexA(th.gridA, 0)); haze.addColorStop(0.4, hexA(th.gridA, 0.55)); haze.addColorStop(1, hexA(th.gridA, 0));
+    haze.addColorStop(0, hexA(th.gridA, 0)); haze.addColorStop(0.4, hexA(th.gridA, th.floorStyle === 'void' ? 0.25 : 0.55)); haze.addColorStop(1, hexA(th.gridA, 0));
     ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = haze; ctx.fillRect(x0, hz - 26, W, 76); ctx.restore();
-    this.drawGrid(ctx, game, t);
-    if (game.alt > 0.02) this.drawPeaks(ctx, game);
+    this.drawFloor(ctx, game, t);
+    this.drawProps(ctx, game, t);
+    if (this.flash > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(200,190,255,${this.flash * 0.35})`; ctx.fillRect(x0, -40, W, H + 80); ctx.restore(); }
+    this.drawWeather(ctx, game, t, x0, W);
   }
-  drawGrid(ctx, game, t) {
-    const v = game.view, th = this.th, hz = v.horizon, dist = game.dist, gf = 1 + 0.4 * game.alt;
-    const gy = s => hz + (v.pY - hz) * s * gf;
-    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineCap = 'round';
-    const dMin = -Z0 * 0.6, sNear = 1 / (1 + dMin / Z0), sFar = 1 / (1 + D_FAR / Z0);
-    const pass = (lw, am) => {
-      ctx.lineWidth = lw;
-      for (let i = -9; i <= 9; i++) {
-        const x = i * 190, a = 0.55 * (1 - Math.abs(i) / 11);
-        const g = ctx.createLinearGradient(0, gy(sFar), 0, gy(sNear));
-        g.addColorStop(0, hexA(th.gridA, 0)); g.addColorStop(1, hexA(th.gridB, a * am));
-        ctx.strokeStyle = g; ctx.beginPath(); ctx.moveTo(x * sFar, gy(sFar)); ctx.lineTo(x * sNear, gy(sNear)); ctx.stroke();
-      }
-      const gap = 200, off = dist % gap;
-      for (let d = -off + Math.ceil(dMin / gap) * gap; d < D_FAR; d += gap) {
-        const s = 1 / (1 + d / Z0), y = gy(s), k = clamp(s, 0, 1);
-        ctx.strokeStyle = hexA(k > 0.45 ? th.gridB : th.gridA, (0.06 + 0.7 * k) * am * (1 - game.alt * 0.35));
-        ctx.beginPath(); ctx.moveTo(-1400 * s - 400, y); ctx.lineTo(1400 * s + 400, y); ctx.stroke();
-      }
-    };
-    pass(5, 0.18); pass(1.3, 0.85);
+  drawAurora(ctx, v, t, x0, W) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    const cols = ['#5affb4', '#7fe8ff', '#b48cff'];
+    for (let i = 0; i < 3; i++) {
+      const base = v.horizon * (0.28 + i * 0.13);
+      const g = ctx.createLinearGradient(0, base - 40, 0, base + 40); g.addColorStop(0, hexA(cols[i], 0)); g.addColorStop(0.5, hexA(cols[i], 0.22)); g.addColorStop(1, hexA(cols[i], 0));
+      ctx.strokeStyle = g; ctx.lineWidth = 46;
+      ctx.beginPath();
+      for (let k = 0; k <= 24; k++) { const x = x0 + W * k / 24, y = base + Math.sin(k * 0.55 + t * (0.35 + i * 0.1) + i) * 22 + Math.sin(k * 1.3 - t * 0.6) * 8; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke();
+    }
     ctx.restore();
   }
-  drawPeaks(ctx, game) {
-    const v = game.view, hz = v.horizon, th = this.th, gf = 1 + 0.4 * game.alt;
-    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineJoin = 'round';
-    for (const p of this.peaks) {
+  drawLightning(ctx, game, t, x0, W) {
+    const v = game.view;
+    this.flash = Math.max(0, this.flash - 1 / 30);
+    if (t > this.nextBolt) {
+      this.nextBolt = t + rand(2.5, 6);
+      const pts = []; let x = rand(-200, 200), y = -30;
+      while (y < v.horizon + 10) { pts.push([x, y]); x += rand(-34, 34); y += rand(14, 34); }
+      this.bolt = { pts, life: 0.28 }; this.flash = 1; game.audio.play('thunder');
+    }
+    if (this.bolt && this.bolt.life > 0) {
+      this.bolt.life -= 1 / 60;
+      const a = Math.max(0, this.bolt.life / 0.28) * (Math.sin(t * 80) > -0.3 ? 1 : 0.4);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round';
+      ctx.beginPath(); this.bolt.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      ctx.strokeStyle = hexA(this.th.gridB, 0.35 * a); ctx.lineWidth = 10; ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,240,${a})`; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+  }
+  drawFloor(ctx, game, t) {
+    const v = game.view, th = this.th, hz = v.horizon, dist = game.dist, gf = 1 + 0.4 * game.alt, style = th.floorStyle;
+    const gy = s => hz + (v.pY - hz) * s * gf;
+    const dMin = -Z0 * 0.6, sNear = 1 / (1 + dMin / Z0), sFar = 1 / (1 + D_FAR / Z0), fadeAlt = 1 - game.alt * 0.35;
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (style === 'void') {
+      ctx.globalCompositeOperation = 'lighter';
+      const span = D_FAR + 400;
+      for (const st of this.voidStars) {
+        const d = ((st.d0 - dist * 0.9) % span + span) % span - 300;
+        const s1 = 1 / (1 + Math.max(d, dMin) / Z0), s2 = 1 / (1 + Math.max(d + 140, dMin) / Z0), a = clamp(s1, 0, 1);
+        ctx.strokeStyle = hexA(a > 0.4 ? th.gridB : '#ffffff', 0.25 + 0.6 * a); ctx.lineWidth = Math.max(1, 2.4 * s1);
+        ctx.beginPath(); ctx.moveTo(st.x * s1, gy(s1)); ctx.lineTo(st.x * s2, gy(s2)); ctx.stroke();
+      }
+      ctx.restore(); return;
+    }
+    const verticals = (am, n = 9) => {
+      const vg = ctx.createLinearGradient(0, gy(sFar), 0, gy(sNear));
+      vg.addColorStop(0, hexA(th.gridA, 0)); vg.addColorStop(1, hexA(th.gridB, 0.55 * am));
+      ctx.strokeStyle = vg; ctx.beginPath();
+      for (let i = -n; i <= n; i++) { const x = i * 190; ctx.moveTo(x * sFar, gy(sFar)); ctx.lineTo(x * sNear, gy(sNear)); }
+      ctx.stroke();
+    };
+    const gap = 200, off = dist % gap, rows = [];
+    for (let d = -off + Math.ceil(dMin / gap) * gap; d < D_FAR; d += gap) rows.push(d);
+    if (style === 'grid' || style === 'ice') {
+      for (const [lw, am] of [[5, 0.18], [1.3, 0.85]]) {
+        ctx.lineWidth = lw; verticals(am);
+        for (const d of rows) {
+          const s = 1 / (1 + d / Z0), y = gy(s), k = clamp(s, 0, 1);
+          ctx.strokeStyle = hexA(k > 0.45 ? th.gridB : th.gridA, (0.06 + 0.7 * k) * am * fadeAlt);
+          ctx.beginPath(); ctx.moveTo(-1400 * s - 400, y); ctx.lineTo(1400 * s + 400, y); ctx.stroke();
+        }
+      }
+      if (style === 'ice') { // glints + cracks
+        ctx.globalCompositeOperation = 'lighter';
+        const dot = GlowCache.dot('#e6fbff');
+        for (let i = 0; i < 14; i++) {
+          const tw = Math.max(0, Math.sin(t * 1.7 + i * 2.3)); if (tw < 0.2) continue;
+          const d = ((hash(i, 5) * D_FAR - dist * 1) % D_FAR + D_FAR) % D_FAR, s = 1 / (1 + d / Z0), r = 12 * s * tw + 2;
+          ctx.globalAlpha = tw; ctx.drawImage(dot, (hash(i, 6) - 0.5) * 1600 * s - r, gy(s) - r, r * 2, r * 2);
+        }
+      }
+    } else if (style === 'dots') {
+      ctx.lineWidth = 1; verticals(0.35, 6); ctx.globalCompositeOperation = 'lighter';
+      for (const d of rows) {
+        const s = 1 / (1 + d / Z0), y = gy(s), k = clamp(s, 0, 1), r = 1 + 3.2 * s;
+        ctx.fillStyle = hexA(k > 0.45 ? th.gridB : th.gridA, (0.15 + 0.75 * k) * fadeAlt);
+        ctx.beginPath(); for (let i = -7; i <= 7; i++) ctx.rect(i * 190 * s - r, y - r * 0.5, r * 2, r); ctx.fill();
+      }
+    } else { // dunes / water: wavy contour lines
+      const water = style === 'water';
+      for (const [lw, am] of [[5, 0.16], [1.4, 0.85]]) {
+        ctx.lineWidth = lw;
+        for (const d of rows) {
+          const td = d + dist, s = 1 / (1 + d / Z0), y = gy(s), k = clamp(s, 0, 1);
+          ctx.strokeStyle = hexA(k > 0.45 ? th.gridB : th.gridA, (0.06 + 0.7 * k) * am * fadeAlt);
+          ctx.beginPath();
+          for (let i = 0; i <= 16; i++) {
+            const wx = -1500 + i * 187.5, amp = water ? 9 : 26;
+            const yy = y + Math.sin(wx * (water ? 0.008 : 0.004) + td * 0.004 + (water ? t * 2.2 : 0)) * amp * s;
+            i ? ctx.lineTo(wx * s, yy) : ctx.moveTo(wx * s, yy);
+          }
+          ctx.stroke();
+        }
+      }
+      if (water) { // shimmering light path
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 18; i++) {
+          const k = i / 18, y = lerp(hz + 4, v.pY + 60, k * k), w = (6 + 70 * k * k) * (0.6 + 0.4 * Math.sin(t * 5 + i * 1.7));
+          ctx.fillStyle = hexA(th.gridB, 0.07 + 0.12 * (1 - k)); ctx.fillRect(game.camera.x * 0.1 - w / 2, y, w, 2 + 3 * k);
+        }
+      }
+    }
+    ctx.restore();
+  }
+  drawProps(ctx, game, t) {
+    const v = game.view, hz = v.horizon, th = this.th, gf = 1 + 0.4 * game.alt, type = th.props;
+    ctx.save(); ctx.lineJoin = 'round';
+    const list = this.props.slice().sort((a, b) => b.tz - a.tz);
+    for (const p of list) {
       let d = p.tz - game.dist;
-      if (d < -Z0 * 0.4) { p.tz += 6000 + rand(0, 800); p.x = (Math.random() < .5 ? -1 : 1) * rand(300, 950); d = p.tz - game.dist; }
+      if (d < -Z0 * 0.4) { const fresh = this.newProp(this.props.indexOf(p), p.tz + 6000 + rand(0, 800)); Object.assign(p, fresh); d = p.tz - game.dist; }
       if (d > D_FAR) continue;
-      const s = 1 / (1 + d / Z0), by = hz + (v.pY - hz) * s * gf, cx = p.x * s, hw = p.w * s, h = p.h * s * 0.55;
-      const a = game.alt * (1 - smooth(D_FAR * 0.6, D_FAR, d));
-      const g = ctx.createLinearGradient(0, by - h, 0, by);
-      g.addColorStop(0, hexA(th.gridB, 0.35 * a)); g.addColorStop(1, hexA(th.gridA, 0.02));
-      ctx.fillStyle = g; ctx.strokeStyle = hexA(th.gridB, 0.8 * a); ctx.lineWidth = Math.max(1, 2 * s);
-      ctx.beginPath(); ctx.moveTo(cx - hw, by); ctx.lineTo(cx - hw * 0.15, by - h); ctx.lineTo(cx + hw * 0.1, by - h * 0.82); ctx.lineTo(cx + hw, by); ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx - hw * 0.15, by - h); ctx.lineTo(cx + hw * 0.05, by); ctx.stroke();
+      const s = 1 / (1 + d / Z0), by = hz + (v.pY - hz) * s * gf, cx = p.x * s;
+      const a = (0.55 + 0.45 * game.alt) * (1 - smooth(D_FAR * 0.6, D_FAR, d));
+      if (a < 0.02) continue;
+      this['prop_' + type](ctx, p, cx, by, s, a, th, t);
+    }
+    ctx.restore();
+  }
+  prop_pyramids(ctx, p, cx, by, s, a, th) {
+    const hw = p.w * s, h = p.h * s * 0.55;
+    ctx.globalCompositeOperation = 'screen';
+    const g = ctx.createLinearGradient(0, by - h, 0, by); g.addColorStop(0, hexA(th.gridB, 0.35 * a)); g.addColorStop(1, hexA(th.gridA, 0.02));
+    ctx.fillStyle = g; ctx.strokeStyle = hexA(th.gridB, 0.8 * a); ctx.lineWidth = Math.max(1, 2 * s);
+    ctx.beginPath(); ctx.moveTo(cx - hw, by); ctx.lineTo(cx - hw * 0.15, by - h); ctx.lineTo(cx + hw * 0.1, by - h * 0.82); ctx.lineTo(cx + hw, by); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - hw * 0.15, by - h); ctx.lineTo(cx + hw * 0.05, by); ctx.stroke();
+  }
+  prop_towers(ctx, p, cx, by, s, a, th, t) {
+    const w = p.w * 0.55 * s, h = p.h * 1.3 * s, x = cx - w / 2;
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
+    const g = ctx.createLinearGradient(0, by - h, 0, by); g.addColorStop(0, '#0c0b26'); g.addColorStop(1, '#05040f');
+    ctx.fillStyle = g; ctx.fillRect(x, by - h, w, h);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = hexA(th.gridB, 0.6); ctx.lineWidth = Math.max(1, 1.5 * s); ctx.strokeRect(x, by - h, w, h);
+    if (s > 0.1) {
+      const cols = 5, rows = 12, cw = w / cols, rh = h / rows;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const k = hash(p.seed, r, c); if (k < 0.55) continue;
+        ctx.fillStyle = k > 0.9 ? hexA(th.gridA, 0.85) : k > 0.75 ? hexA(th.gridB, 0.75) : 'rgba(255,214,140,.5)';
+        ctx.fillRect(x + c * cw + cw * 0.25, by - h + r * rh + rh * 0.25, cw * 0.5, rh * 0.45);
+      }
+    }
+    const blink = Math.sin(t * 3 + p.seed) > 0.4 ? 1 : 0.2, r = 12 * s + 3;
+    ctx.globalAlpha = a * blink; ctx.drawImage(GlowCache.dot(PALETTE.danger), cx - r, by - h - 8 * s - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
+  }
+  prop_mushrooms(ctx, p, cx, by, s, a, th, t) {
+    const h = p.h * 0.6 * s, cw = p.w * 0.55 * s, sw = cw * 0.18, sway = Math.sin(t * 0.8 + p.seed) * 6 * s;
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
+    ctx.fillStyle = '#0d2a20'; ctx.fillRect(cx - sw / 2, by - h, sw, h);
+    const g = ctx.createRadialGradient(cx + sway, by - h, 2, cx + sway, by - h, cw); g.addColorStop(0, hexA(th.gridB, 0.9)); g.addColorStop(0.6, hexA(th.gridA, 0.55)); g.addColorStop(1, '#06281f');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx + sway, by - h, cw, cw * 0.45, 0, Math.PI, TAU); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) { const r = (4 + hash(p.seed, i) * 6) * s + 1, ox = (hash(p.seed, i, 2) - 0.5) * cw * 1.4, oy = -hash(p.seed, i, 3) * cw * 0.35; ctx.globalAlpha = a * (0.6 + 0.4 * Math.sin(t * 2 + i)); ctx.drawImage(GlowCache.dot(th.gridB), cx + sway + ox - r, by - h + oy - r, r * 2, r * 2); }
+    ctx.globalAlpha = 1;
+  }
+  prop_mesas(ctx, p, cx, by, s, a, th) {
+    const w = p.w * 1.2 * s, h = p.h * 0.5 * s;
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
+    const g = ctx.createLinearGradient(0, by - h, 0, by); g.addColorStop(0, '#a3401a'); g.addColorStop(1, '#2a0a04');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx - w / 2, by); ctx.lineTo(cx - w * 0.32, by - h); ctx.lineTo(cx + w * 0.3, by - h); ctx.lineTo(cx + w / 2, by); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = hexA(th.gridB, 0.55); ctx.lineWidth = Math.max(1, 2 * s); ctx.stroke();
+    ctx.strokeStyle = hexA(th.gridA, 0.35); ctx.lineWidth = Math.max(1, 1.2 * s); ctx.beginPath();
+    for (let i = 1; i <= 3; i++) { const yy = by - h + h * i / 4, k = i / 4; ctx.moveTo(cx - w * (0.32 + 0.18 * k), yy); ctx.lineTo(cx + w * (0.3 + 0.2 * k), yy); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  prop_crystals(ctx, p, cx, by, s, a, th, t) {
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 3; i++) {
+      const h = p.h * (0.5 + hash(p.seed, i) * 0.6) * s, w = (18 + hash(p.seed, i, 1) * 24) * s, ox = (i - 1) * w * 1.2, lean = (hash(p.seed, i, 2) - 0.5) * 0.4 * h;
+      const g = ctx.createLinearGradient(0, by - h, 0, by); g.addColorStop(0, hexA('#ffffff', 0.55 * a)); g.addColorStop(0.5, hexA(th.gridA, 0.3 * a)); g.addColorStop(1, hexA(th.gridA, 0.04 * a));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx + ox - w / 2, by); ctx.lineTo(cx + ox + lean, by - h); ctx.lineTo(cx + ox + w / 2, by); ctx.lineTo(cx + ox + lean * 0.3, by - h * 0.35); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = hexA('#e6fbff', 0.7 * a); ctx.lineWidth = Math.max(1, 1.4 * s); ctx.stroke();
+      const tw = Math.max(0, Math.sin(t * 2 + p.seed + i * 2)); if (tw > 0.7) { const r = 14 * s * tw; ctx.globalAlpha = a; ctx.drawImage(GlowCache.dot('#ffffff'), cx + ox + lean - r, by - h - r, r * 2, r * 2); ctx.globalAlpha = 1; }
+    }
+  }
+  prop_pillars(ctx, p, cx, by, s, a, th, t) {
+    const w = 34 * s, gapX = p.w * 0.5 * s;
+    for (let i = 0; i < 2; i++) {
+      const h = p.h * (0.55 + hash(p.seed, i) * 0.45) * s, x = cx + (i ? gapX : -gapX) / 2 - w / 2;
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
+      const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, '#003a44'); g.addColorStop(0.5, '#00606a'); g.addColorStop(1, '#00222a');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, by); ctx.lineTo(x, by - h); ctx.lineTo(x + w * 0.4, by - h - 10 * s); ctx.lineTo(x + w, by - h + 6 * s); ctx.lineTo(x + w, by); ctx.closePath(); ctx.fill();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 3; k++) { const r = 7 * s + 1, yy = by - h * (0.25 + k * 0.25); ctx.globalAlpha = a * (0.5 + 0.5 * Math.sin(t * 1.5 + k + p.seed)); ctx.drawImage(GlowCache.dot(th.gridA), x + w / 2 - r, yy - r, r * 2, r * 2); }
+    }
+    ctx.globalAlpha = 1;
+  }
+  prop_spires(ctx, p, cx, by, s, a, th, t) {
+    const h = p.h * 1.1 * s, w = 22 * s;
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a; ctx.fillStyle = '#0c0a1c';
+    ctx.beginPath(); ctx.moveTo(cx - w, by); ctx.lineTo(cx, by - h); ctx.lineTo(cx + w, by); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = hexA(th.gridB, 0.6); ctx.lineWidth = Math.max(1, 1.5 * s); ctx.stroke();
+    ctx.beginPath(); for (let k = 1; k < 5; k++) { const yy = by - h * k / 5, ww = w * (1 - k / 5); ctx.moveTo(cx - ww, yy); ctx.lineTo(cx + ww, yy); } ctx.stroke();
+    const r = 14 * s + 3, lit = this.flash > 0.3 ? 1 : (Math.sin(t * 4 + p.seed) > 0.5 ? 0.9 : 0.25);
+    ctx.globalAlpha = a * lit; ctx.drawImage(GlowCache.dot(this.flash > 0.3 ? '#ffffff' : th.gridA), cx - r, by - h - r, r * 2, r * 2); ctx.globalAlpha = 1;
+  }
+  prop_asteroids(ctx, p, cx, by, s, a, th, t) {
+    const r = p.w * 0.35 * s, y = by - p.elev * s, rot = p.rot + t * 0.25 * (hash(p.seed, 9) - 0.5);
+    ctx.save(); ctx.translate(cx, y); ctx.rotate(rot); ctx.globalAlpha = a;
+    const g = ctx.createRadialGradient(-r * 0.4, -r * 0.4, 1, 0, 0, r * 1.1); g.addColorStop(0, '#5a4a7a'); g.addColorStop(1, '#120a22');
+    ctx.fillStyle = g; ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const ang = i / 8 * TAU, rr = r * (0.7 + hash(p.seed, i) * 0.4); i ? ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr) : ctx.moveTo(Math.cos(ang) * rr, Math.sin(ang) * rr); }
+    ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = hexA(th.gridA, 0.55); ctx.lineWidth = Math.max(1, 1.5 * s); ctx.stroke();
+    ctx.restore();
+  }
+  drawWeather(ctx, game, t, x0, W) {
+    const type = this.th.weather; if (!type) return;
+    const v = game.view, H = v.H, wx = this.wx;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    if (type === 'rain') {
+      ctx.strokeStyle = 'rgba(170,190,255,.32)'; ctx.lineWidth = 1.2; ctx.beginPath();
+      for (const q of wx) { const y = ((q.y * H + t * 900 * q.v) % (H + 40)) - 20, x = x0 + ((q.x + 0.5) * W + t * 60) % W; ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 20 * q.v); }
+      ctx.stroke();
+    } else if (type === 'snow') {
+      ctx.fillStyle = 'rgba(235,250,255,.75)'; ctx.beginPath();
+      for (const q of wx) { const y = (q.y * H + t * 55 * q.v) % H, x = x0 + (((q.x + 0.5) * W + Math.sin(t * 0.8 + q.p) * 30) % W + W) % W, r = 1.2 * q.s + 0.4; ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); }
+      ctx.fill();
+    } else if (type === 'embers') {
+      const dot = GlowCache.dot('#ff8a2b');
+      for (let i = 0; i < 50; i++) { const q = wx[i], y = H - ((q.y * H + t * 70 * q.v) % H), x = x0 + (((q.x + 0.5) * W + Math.sin(t + q.p) * 40) % W + W) % W, r = 3 * q.s; ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6 + q.p); ctx.drawImage(dot, x - r, y - r, r * 2, r * 2); }
+    } else if (type === 'spores') {
+      const dot = GlowCache.dot(this.th.gridB);
+      for (let i = 0; i < 40; i++) { const q = wx[i], y = (q.y * H + Math.sin(t * 0.5 + q.p) * 30 + t * 12) % H, x = x0 + (((q.x + 0.5) * W + Math.sin(t * 0.7 + q.p * 3) * 50) % W + W) % W, r = 4 * q.s; ctx.globalAlpha = 0.35 + 0.3 * Math.sin(t * 2 + q.p); ctx.drawImage(dot, x - r, y - r, r * 2, r * 2); }
+    } else if (type === 'bubbles') {
+      ctx.strokeStyle = hexA(this.th.gridB, 0.45); ctx.lineWidth = 1; ctx.beginPath();
+      for (let i = 0; i < 45; i++) { const q = wx[i], y = H - ((q.y * H + t * 80 * q.v) % H), x = x0 + (((q.x + 0.5) * W + Math.sin(t * 2 + q.p) * 10) % W + W) % W, r = 2 + 3 * q.s; ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); }
+      ctx.stroke();
     }
     ctx.restore();
   }
@@ -884,22 +1208,26 @@ class Player extends Entity {
    11. ENEMY GUNSHIP (waves + boss)
    ===================================================================== */
 class Gunship extends Entity {
-  // kind: gunship | dart | tank | lancer | boss   (boss uses bossType: mothership | warden | hive)
+  // kind: gunship | dart | weaver | tank | splitter | lancer | guardian | bomber | sniper | boss
+  // boss uses bossType: mothership | warden | hive | colossus | serpent
   constructor(game, x, d, hp, hue, boss, kind = 'gunship', bossType = null) {
     super({ sprite: boss ? SPRITES.boss : SPRITES.drone });
     Object.assign(this, { game, x, d, hp, max: hp, hue, boss, homeX: x, kind: boss ? 'boss' : kind, bossType });
     const sm = game.speedMul || 1;
-    this.scale = boss ? 3.6 : { gunship: 1.7, dart: 1.3, tank: 2.3, lancer: 1.8 }[kind];
+    this.scale = boss ? (bossType === 'colossus' ? 3.9 : 3.6) : { gunship: 1.7, dart: 1.3, tank: 2.3, lancer: 1.8, weaver: 1.6, splitter: 1.9, bomber: 2.0, guardian: 1.9, sniper: 1.5 }[kind];
     this.ph = rand(0, TAU); this.flash = 0; this.hpShown = 1; this.rotor = 0; this.rotation = 0;
-    this.vz = (boss ? 520 : 170 + game.wave * 30) * sm * ({ dart: 1.9, tank: 0.6, lancer: 1.2 }[kind] || 1);
+    this.vz = (boss ? 520 : 170 + game.wave * 30) * sm * ({ dart: 1.9, tank: 0.6, lancer: 1.2, splitter: 0.9, bomber: 0.75, guardian: 0.85, sniper: 1.3 }[kind] || 1);
     this.fireT = boss ? 1.6 : kind === 'lancer' ? rand(0.6, 1.4) : rand(1.0, 3.0);
-    this.holdD = kind === 'lancer' ? rand(640, 820) : 0;
+    this.holdD = kind === 'lancer' ? rand(640, 820) : kind === 'sniper' ? rand(720, 880) : 0; this.holdT = 0;
+    this.shT = rand(0, 2); this.aimT = 0; this.aimX = 0; this.burstLeft = 0; this.trail = []; this.segI = 0; this.sweep = null; this.sweepDir = 1;
     this.charge = 0; this.phase = 1; this.spawnT = 3; this.burstT = 2;
-    this.glow = boss ? (bossType === 'warden' ? PALETTE.cyan : bossType === 'hive' ? PALETTE.lime : PALETTE.magenta)
-      : kind === 'dart' ? PALETTE.cyan : kind === 'tank' ? PALETTE.amber : kind === 'lancer' ? PALETTE.danger
-      : hue > 200 ? PALETTE.violet : hue > 100 ? PALETTE.lime : PALETTE.amber;
+    this.glow = boss ? ({ warden: PALETTE.cyan, hive: PALETTE.lime, colossus: '#ff8a2b', serpent: '#00e5c8' }[bossType] || PALETTE.magenta)
+      : { dart: PALETTE.cyan, tank: PALETTE.amber, lancer: PALETTE.danger, weaver: PALETTE.violet, splitter: PALETTE.magenta, bomber: '#ff8a2b', guardian: PALETTE.cyan, sniper: '#ffe23a' }[kind]
+      || (hue > 200 ? PALETTE.violet : hue > 100 ? PALETTE.lime : PALETTE.amber);
+    if (!boss && kind !== 'gunship') this.hue = { dart: 185, tank: 38, lancer: 350, weaver: 262, splitter: 310, bomber: 24, guardian: 190, sniper: 52 }[kind];
   }
-  get elev() { return ELEV + (this.boss ? 40 : this.kind === 'tank' ? 18 : 10); }
+  get elev() { return ELEV + (this.boss ? 40 : this.kind === 'tank' || this.kind === 'bomber' ? 18 : 10); }
+  get shieldUp() { return this.kind === 'guardian' && (this.shT % 4.6) < 3.0; }
   update(dt) {
     super.update(dt);
     const g = this.game, p = g.player;
@@ -912,14 +1240,23 @@ class Gunship extends Entity {
       if (this.d > 760) this.d = Math.max(760, this.d - this.vz * dt);
       let tx;
       if (bt === 'warden') tx = Math.sin(T * 0.35) * 120;
+      else if (bt === 'colossus') tx = Math.sin(T * 0.3) * 110;
+      else if (bt === 'serpent') {
+        tx = Math.sin(T * (this.phase === 2 ? 1.25 : 0.9)) * 175;
+        if (this.d <= 760.5 || this.arrived) { this.arrived = true; this.d = 830 + Math.sin(T * 1.8) * 95; }
+        this.trailTick = ((this.trailTick || 0) + 1) % 3;
+        if (!this.trailTick) { this.trail.push({ x: this.x, d: this.d }); if (this.trail.length > 140) this.trail.shift(); }
+      }
       else if (bt === 'hive') { tx = Math.sin(T * 0.5) * 150; if (this.d <= 760.5) this.d = 800 + Math.sin(T * 1.0) * 60; }
       else tx = Math.sin(T * (this.phase === 2 ? 0.8 : 0.55)) * 165;
       this.x = damp(this.x, tx, 3, dt);
       this.rotation = clamp((tx - this.x) * 0.004, -0.25, 0.25);
       return;
     }
-    if (this.kind === 'lancer') {
+    this.shT += dt;
+    if (this.kind === 'lancer' || this.kind === 'sniper') {
       if (this.d > this.holdD) this.d = Math.max(this.holdD, this.d - this.vz * dt);
+      else { this.holdT += dt; if (this.holdT > 5) { this.holdD = Math.max(360, this.holdD - dt * 30); this.d = this.holdD; } } // creep in so short-range builds can still reach
       const tx = this.charge > 0 ? this.x : clamp(p.x + Math.sin(g.time * 0.7 + this.ph) * 90, -200, 200);
       this.x = damp(this.x, tx, 1.2, dt);
       this.rotation = 0;
@@ -928,10 +1265,25 @@ class Gunship extends Entity {
     this.d -= this.vz * dt;
     let tx = this.homeX + Math.sin(g.time * 1.3 + this.ph) * 26;
     if (this.kind === 'dart' && this.d > 220) tx = clamp(p.x + Math.sin(g.time * 3 + this.ph) * 60, -220, 220); // swerve toward the player
-    this.x = damp(this.x, tx, this.kind === 'dart' ? 2.2 : this.kind === 'tank' ? 1.5 : 4, dt);
-    this.rotation = this.kind === 'dart' ? clamp((tx - this.x) * -0.006, -0.5, 0.5) : Math.cos(g.time * 1.3 + this.ph) * 0.12;
+    if (this.kind === 'weaver') tx = Math.sin(g.time * 1.4 + this.ph) * 195;                                     // wide figure sweeps
+    if (this.kind === 'bomber') tx = this.homeX + Math.sin(g.time * 0.6 + this.ph) * 70;
+    this.x = damp(this.x, tx, this.kind === 'dart' ? 2.2 : this.kind === 'tank' || this.kind === 'bomber' ? 1.5 : this.kind === 'weaver' ? 3 : 4, dt);
+    this.rotation = this.kind === 'dart' || this.kind === 'weaver' ? clamp((tx - this.x) * -0.006, -0.5, 0.5) : Math.cos(g.time * 1.3 + this.ph) * 0.12;
     if (this.d < -Z0 * 0.5) this.dead = true;
   }
+  drawSegments(ctx, t) { // serpent body, drawn tail-first behind the head
+    const g = this.game, tr = this.trail; if (tr.length < 10) return;
+    for (let k = 7; k >= 1; k--) {
+      const pt = tr[Math.max(0, tr.length - 1 - k * 12)], q = g.proj(pt.x, pt.d, this.elev), r = 30 * this.scale * q.s * (1 - k * 0.07);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5; ctx.drawImage(GlowCache.dot(this.glow), q.x - r * 1.8, q.y - r * 1.8, r * 3.6, r * 3.6); ctx.restore();
+      const gr = ctx.createRadialGradient(q.x - r * 0.3, q.y - r * 0.3, 1, q.x, q.y, r);
+      gr.addColorStop(0, `hsl(${this.hue},100%,75%)`); gr.addColorStop(0.6, `hsl(${this.hue},90%,35%)`); gr.addColorStop(1, `hsl(${this.hue + 30},90%,10%)`);
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `hsla(${this.hue},100%,75%,.8)`; ctx.lineWidth = Math.max(1, 2 * q.s); ctx.stroke();
+      const sr = r * 0.3; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(GlowCache.dot(this.segI === k ? PALETTE.white : PALETTE.danger), q.x - sr, q.y - sr, sr * 2, sr * 2); ctx.restore();
+    }
+  }
+  segPos(k) { const tr = this.trail; return tr.length ? tr[Math.max(0, tr.length - 1 - k * 12)] : { x: this.x, d: this.d }; }
   drawVector(ctx, t, sx, sy, k) {
     const hue = this.hue + Math.sin(t * 2 + this.ph) * 14, boss = this.boss, kind = this.kind, bt = this.bossType;
     ctx.save(); ctx.translate(sx, sy); ctx.scale(k, k); ctx.rotate(this.rotation);
@@ -939,10 +1291,10 @@ class Gunship extends Entity {
     // soft glow sprite behind the hull
     { const gr = boss ? 95 : kind === 'tank' ? 60 : 46; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45 + this.charge * 0.5; ctx.drawImage(GlowCache.dot(this.glow), -gr, -gr, gr * 2, gr * 2); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
     // rotors (not on darts / lancers / warden / hive)
-    const rotorKind = kind === 'gunship' || kind === 'tank' || (boss && bt === 'mothership');
+    const rotorKind = kind === 'gunship' || kind === 'tank' || kind === 'bomber' || (boss && bt === 'mothership');
     if (rotorKind) {
       ctx.lineCap = 'round'; ctx.strokeStyle = `hsla(${hue},90%,55%,.8)`; ctx.lineWidth = boss ? 3 : 4;
-      const arms = boss ? [[-46, -16], [46, -16], [-40, 22], [40, 22]] : kind === 'tank' ? [[-34, -22], [34, -22], [-34, 22], [34, 22]] : [[-30, -18], [30, -18], [-30, 18], [30, 18]];
+      const arms = boss ? [[-46, -16], [46, -16], [-40, 22], [40, 22]] : kind === 'tank' || kind === 'bomber' ? [[-36, -22], [36, -22], [-36, 22], [36, 22]] : [[-30, -18], [30, -18], [-30, 18], [30, 18]];
       ctx.beginPath(); for (const [ax, ay] of arms) { ctx.moveTo(0, 0); ctx.lineTo(ax, ay); } ctx.stroke();
       ctx.globalCompositeOperation = 'lighter';
       for (const [ax, ay] of arms) {
@@ -954,12 +1306,19 @@ class Gunship extends Entity {
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     }
     // hull
-    const R0 = boss ? 44 : kind === 'tank' ? 30 : 24;
+    const R0 = boss ? (bt === 'colossus' ? 58 : 44) : kind === 'tank' || kind === 'bomber' ? 30 : 24;
     const body = ctx.createRadialGradient(-6, -8, 2, 0, 0, R0);
     body.addColorStop(0, core); body.addColorStop(0.45, `hsl(${hue},95%,42%)`); body.addColorStop(1, `hsl(${hue + 40},90%,12%)`);
     ctx.fillStyle = body; ctx.beginPath();
     if (boss && bt === 'warden') { ctx.arc(0, 0, 40, 0, TAU); ctx.moveTo(26, 0); ctx.arc(0, 0, 22, 0, TAU, true); }
     else if (boss && bt === 'hive') { for (let i = 0; i < 7; i++) { const a = i / 6 * TAU, cx = i === 6 ? 0 : Math.cos(a) * 26, cy = i === 6 ? 0 : Math.sin(a) * 26; for (let j = 0; j < 6; j++) { const b = j / 6 * TAU + Math.PI / 6; ctx[j ? 'lineTo' : 'moveTo'](cx + Math.cos(b) * 15, cy + Math.sin(b) * 15); } ctx.closePath(); } }
+    else if (boss && bt === 'colossus') { ctx.moveTo(-54, -30); ctx.lineTo(54, -30); ctx.lineTo(62, 0); ctx.lineTo(54, 32); ctx.lineTo(-54, 32); ctx.lineTo(-62, 0); }
+    else if (boss && bt === 'serpent') { ctx.moveTo(0, 36); ctx.lineTo(30, 8); ctx.lineTo(24, -24); ctx.lineTo(0, -34); ctx.lineTo(-24, -24); ctx.lineTo(-30, 8); }
+    else if (kind === 'weaver') { ctx.moveTo(0, 16); ctx.lineTo(34, -8); ctx.lineTo(14, -2); ctx.lineTo(0, -16); ctx.lineTo(-14, -2); ctx.lineTo(-34, -8); }
+    else if (kind === 'splitter') { ctx.moveTo(0, -28); ctx.lineTo(24, 0); ctx.lineTo(0, 28); ctx.lineTo(-24, 0); }
+    else if (kind === 'bomber') { for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 32, Math.sin(a) * 22); } }
+    else if (kind === 'guardian') { ctx.arc(0, 0, 22, 0, TAU); }
+    else if (kind === 'sniper') { ctx.moveTo(0, 34); ctx.lineTo(8, -4); ctx.lineTo(5, -26); ctx.lineTo(-5, -26); ctx.lineTo(-8, -4); }
     else if (boss) { ctx.moveTo(0, -30); ctx.lineTo(30, -18); ctx.lineTo(54, 6); ctx.lineTo(30, 26); ctx.lineTo(0, 34); ctx.lineTo(-30, 26); ctx.lineTo(-54, 6); ctx.lineTo(-30, -18); }
     else if (kind === 'dart') { ctx.moveTo(0, 26); ctx.lineTo(18, -14); ctx.lineTo(6, -8); ctx.lineTo(0, -20); ctx.lineTo(-6, -8); ctx.lineTo(-18, -14); }
     else if (kind === 'tank') { for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + Math.PI / 8; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 30, Math.sin(a) * 26); } }
@@ -972,11 +1331,23 @@ class Gunship extends Entity {
     else if (boss && bt === 'warden') { for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + this.rotor * 0.15; ctx.moveTo(Math.cos(a) * 40, Math.sin(a) * 40); ctx.lineTo(Math.cos(a) * 54, Math.sin(a) * 54); } }
     else if (kind === 'tank') { ctx.moveTo(-22, -10); ctx.lineTo(22, -10); ctx.moveTo(-22, 10); ctx.lineTo(22, 10); ctx.moveTo(-8, 20); ctx.lineTo(-8, 34); ctx.moveTo(8, 20); ctx.lineTo(8, 34); }
     else if (kind === 'lancer') { ctx.moveTo(-14, 0); ctx.lineTo(-20, 34); ctx.moveTo(14, 0); ctx.lineTo(20, 34); }
+    else if (kind === 'splitter') { ctx.moveTo(0, -28); ctx.lineTo(5, -12); ctx.lineTo(-5, 2); ctx.lineTo(4, 14); ctx.lineTo(0, 28); }
+    else if (kind === 'bomber') { ctx.rect(-12, 6, 24, 10); }
+    else if (kind === 'weaver') { ctx.moveTo(-30, -6); ctx.lineTo(-8, 4); ctx.moveTo(30, -6); ctx.lineTo(8, 4); }
+    else if (kind === 'sniper') { ctx.moveTo(0, 34); ctx.lineTo(0, 52); }
+    else if (boss && bt === 'colossus') { ctx.moveTo(-54, 0); ctx.lineTo(54, 0); ctx.moveTo(-20, -30); ctx.lineTo(-20, 32); ctx.moveTo(20, -30); ctx.lineTo(20, 32); ctx.moveTo(-40, 32); ctx.lineTo(-40, 48); ctx.moveTo(40, 32); ctx.lineTo(40, 48); }
+    else if (boss && bt === 'serpent') { ctx.moveTo(-14, -14); ctx.lineTo(-6, -8); ctx.moveTo(14, -14); ctx.lineTo(6, -8); }
     ctx.stroke();
+    if (this.shieldUp) { // guardian energy bubble; flickers just before it drops
+      const left = 3.0 - (this.shT % 4.6), fl = left < 0.6 ? (Math.sin(t * 40) > 0 ? 1 : 0.3) : 1;
+      ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = hexA(PALETTE.cyan, 0.25 * fl); ctx.lineWidth = 9; ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + t; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 40, Math.sin(a) * 40); } ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = hexA('#bff9ff', 0.8 * fl); ctx.lineWidth = 1.6; ctx.stroke();
+    }
     // eye / core
     ctx.globalCompositeOperation = 'lighter';
     const er = (boss ? 16 : kind === 'dart' ? 6 : 9) + Math.sin(t * 8 + this.ph) * 2 + this.flash * 8 + this.charge * 10;
-    const ey = kind === 'lancer' ? 26 : boss && bt === 'warden' ? 0 : 4;
+    const ey = kind === 'lancer' ? 26 : kind === 'sniper' ? -12 : boss && (bt === 'warden' || bt === 'colossus') ? 0 : boss && bt === 'serpent' ? 10 : 4;
     ctx.drawImage(GlowCache.dot(kind === 'dart' ? PALETTE.cyan : PALETTE.danger), -er, ey - er, er * 2, er * 2);
     ctx.drawImage(GlowCache.dot(PALETTE.white), -er * 0.4, ey - er * 0.4, er * 0.8, er * 0.8);
     ctx.restore();
@@ -1227,7 +1598,8 @@ class Game {
     nm.textContent = `${th.name.toUpperCase()} · STAGE ${save.stage}`;
     nm.style.color = th.gridB; nm.style.textShadow = `0 0 14px ${hexA(th.gridA, 0.8)}`;
     const md = stageMod(save.stage);
-    document.getElementById('stageMod').textContent = `Boss: ${stageBoss(save.stage).name}${md ? ' · ' + md.name : ''}`;
+    const ff = featuredFoe(save.stage);
+    document.getElementById('stageMod').textContent = `Boss: ${stageBoss(save.stage).name}${md ? ' · ' + md.name : ''}${ff ? ' · ' + FOE_NAMES[ff] : ''}`;
     document.getElementById('stageMeta').textContent = save.maxStage > 1 ? `Highest reached: ${save.maxStage}` : 'Clear this stage to unlock the next';
     document.getElementById('stagePrev').disabled = save.stage <= 1;
     document.getElementById('stageNext').disabled = save.stage >= save.maxStage;
@@ -1249,7 +1621,7 @@ class Game {
     const Rn = mulberry32(st * 7919 + 1), rr = (a, b) => a + Rn() * (b - a), ri = (a, b) => Math.floor(rr(a, b + 1)), rp = arr => arr[Math.floor(Rn() * arr.length)];
     const mod = this.mod = stageMod(st); const mid = mod ? mod.id : '';
     this.speedMul = mid === 'overdrive' ? 1.15 : 1;
-    this.bossDef = stageBoss(st);
+    this.bossDef = stageBoss(st); this.featured = featuredFoe(st);
     this.gates = []; this.saws = []; this.rings = []; this.lasers = []; this.walls = []; this.chips = []; this.mines = []; this.beams = [];
     // --- gates: pairs, and from stage 2 some three-way gates ---
     for (let i = 0; i < TRACK.GATES; i++) {
@@ -1316,7 +1688,7 @@ class Game {
     this.state = 'menu'; this.stateT = 0;
     this.bullets.length = 0; this.eBullets.length = 0; this.enemies.length = 0; this.cash.length = 0; this.boss = null;
     this.dist = 0; this.alt = 0; this.runCash = 0; this.beams.length = 0;
-    this.backdrop.setTheme(theme());
+    this.backdrop.setTheme(theme()); this.audio.setSong(theme().song);
     this.buildStage();
     this.player.reset();
     this.dom.hud.classList.remove('live');
@@ -1413,14 +1785,24 @@ class Game {
     let n = 10 + w * 3 + Math.min(4, Math.floor((st - 1) / 2) * 2) + (mid === 'swarm' ? 4 : 0);
     const hpBase = Math.round((55 + 35 * w) * stageScale() * (mid === 'armor' ? 1.2 : 1));
     const hue = [150, 275, 25][w % 3];
-    // composition
-    const kinds = [];
-    const darts = mid === 'swarm' ? Math.round(n * 0.55) : st >= 2 ? Math.round(n * 0.25) : (w === 2 ? 3 : 0);
-    const tanks = (mid === 'armor' ? 2 : 0) + (st >= 2 && w >= 1 ? 1 + Math.floor(st / 4) : 0);
-    const lancers = st >= 3 ? Math.min(3, 1 + Math.floor((st - 3) / 2)) - (w === 0 ? 1 : 0) : 0;
-    for (let i = 0; i < darts; i++) kinds.push('dart');
-    for (let i = 0; i < tanks; i++) kinds.push('tank');
-    while (kinds.length < n - Math.max(0, lancers)) kinds.push('gunship');
+    // composition: unlocked roster + this stage's featured enemy
+    const feat = this.featured;
+    const pool = Object.keys(ENEMY_UNLOCK).filter(k => ENEMY_UNLOCK[k] <= st && k !== 'lancer' && k !== 'sniper' && k !== 'gunship');
+    let lancers = st >= 4 ? Math.min(3, 1 + Math.floor((st - 4) / 2)) - (w === 0 ? 1 : 0) : 0;
+    let snipers = st >= 5 && w >= 1 ? 1 : 0;
+    if (feat === 'lancer') lancers += 1; if (feat === 'sniper') snipers += 2;
+    lancers = Math.max(0, lancers);
+    const kinds = [], cap = { tank: 3 + (mid === 'armor' ? 2 : 0), bomber: 3, guardian: 4, splitter: 5 }, count = {};
+    for (let i = 0; i < n - lancers - snipers; i++) {
+      let kind;
+      if (st === 1) kind = w === 2 && i < 3 ? 'dart' : 'gunship';
+      else if (mid === 'swarm' && Math.random() < 0.55) kind = 'dart';
+      else if (mid === 'armor' && i < 2) kind = 'tank';
+      else if (feat && feat !== 'lancer' && feat !== 'sniper' && Math.random() < 0.35) kind = feat;
+      else kind = Math.random() < 0.4 || !pool.length ? 'gunship' : pick(pool);
+      if (cap[kind] !== undefined && (count[kind] || 0) >= cap[kind]) kind = 'gunship';
+      count[kind] = (count[kind] || 0) + 1; kinds.push(kind);
+    }
     kinds.sort(() => Math.random() - 0.5);
     const formation = st === 1 && w === 0 ? 'grid' : pick(['grid', 'vee', 'columns', 'swarm', 'pincer']);
     this.waveTotal = 0;
@@ -1431,12 +1813,16 @@ class Game {
       else if (formation === 'swarm') { x = rand(-210, 210); d = 1250 + i * 85 + rand(0, 60); }
       else if (formation === 'pincer') { const side = i % 2 ? -1 : 1; x = side * rand(150, 215); home = side * rand(20, 110); d = 1250 + Math.floor(i / 2) * 150; }
       else { const row = Math.floor(i / 3.5), cols = row % 2 === 0 ? 4 : 3, c = i - Math.ceil(row * 3.5); x = (clamp(c, 0, cols - 1) - (cols - 1) / 2) * 128; d = 1250 + row * 220; }
-      const hp = Math.round(hpBase * ({ dart: 0.45, tank: 2.6 }[kind] || 1));
+      const hp = Math.round(hpBase * (FOE_HP[kind] || 1));
       const e = new Gunship(this, x, d, hp, hue, false, kind);
       if (home !== undefined) e.homeX = home;
       this.enemies.push(e); this.waveTotal++;
     });
-    for (let i = 0; i < lancers; i++) { this.enemies.push(new Gunship(this, rand(-140, 140), 1600 + i * 200, Math.round(hpBase * 1.4), 0, false, 'lancer')); this.waveTotal++; }
+    for (let i = 0; i < lancers; i++) { this.enemies.push(new Gunship(this, rand(-140, 140), 1600 + i * 200, Math.round(hpBase * FOE_HP.lancer), 0, false, 'lancer')); this.waveTotal++; }
+    for (let i = 0; i < snipers; i++) { this.enemies.push(new Gunship(this, rand(-170, 170), 1800 + i * 160, Math.round(hpBase * FOE_HP.sniper), 0, false, 'sniper')); this.waveTotal++; }
+    // first sighting of an enemy type gets a callout
+    const seen = save.seen || (save.seen = []), fresh = [...new Set(this.enemies.map(e => e.kind))].filter(k => k !== 'boss' && !seen.includes(k) && k !== 'gunship');
+    if (fresh.length) { seen.push(...fresh); persist(); setTimeout(() => { this.floatText(0, this.view.H * 0.5, 'NEW: ' + fresh.map(k => FOE_NAMES[k].toUpperCase()).join(' + '), PALETTE.lime, 24); this.audio.play('newfoe'); }, 900); }
     const label = { grid: 'GRID', vee: 'V-WING', columns: 'COLUMNS', swarm: 'SWARM', pincer: 'PINCER' }[formation];
     this.floatText(0, this.view.H * 0.42, `WAVE ${w + 1} · ${label}`, PALETTE.amber, 30);
     this.audio.play('warn');
@@ -1454,6 +1840,10 @@ class Game {
   addBeam(x, srcD, { w = 70, tele = 0.9, dur = 0.45, dmg }) {
     this.beams.push({ x, d: srcD, w, t: 0, tele, dur, dmg, hit: false, fired: false });
     this.audio.play('charge');
+  }
+  fireAt(x, d, tx, sp, dmg, extra = {}) {
+    const time = Math.max(0.2, d / sp);
+    this.eBullets.push(Object.assign({ x, d: d - 30, vx: (tx - x) / time, vd: -sp, dmg, big: false }, extra));
   }
   enemyFire(e, spread = 1) {
     const dmg = Math.round((9 + 5 * save.stage) * (e.boss ? 1.4 : 1)), sp = e.boss ? 500 : 560;
@@ -1475,7 +1865,11 @@ class Game {
     this.particles.burst(p.x, p.y, { n: e.boss ? 60 : 16, speed: [90, 420], life: [0.3, 0.75], size: [4, 9], colors: [hex, PALETTE.white, PALETTE.amber], sparks: e.boss ? 28 : 9, scale: ks });
     this.shockwave(p.x, p.y, hex, (e.boss ? 300 : 80) * clamp(k, 0.4, 1.5));
     if (e.boss) { this.impact(1, 10, true); this.audio.play('bigboom'); this.dropCash(p.x, p.y, 40 * save.stage, 10); this.beams.length = 0; }
-    else { this.impact(e.kind === 'tank' ? 0.3 : 0.14, 0); this.audio.play('explode'); this.dropCash(p.x, p.y, (4 + 2 * save.stage) * (e.kind === 'tank' ? 3 : e.kind === 'lancer' ? 2 : e.kind === 'dart' ? 0.6 : 1), e.kind === 'tank' ? 4 : 2); }
+    else {
+      this.impact(e.kind === 'tank' || e.kind === 'bomber' ? 0.3 : 0.14, 0); this.audio.play('explode');
+      this.dropCash(p.x, p.y, (4 + 2 * save.stage) * (FOE_CASH[e.kind] || 1), e.kind === 'tank' ? 4 : 2);
+      if (e.kind === 'splitter') for (const sd of [-1, 1]) this.enemies.push(new Gunship(this, clamp(e.x + sd * 55, -215, 215), e.d - 20, Math.max(1, Math.round(e.max * 0.3)), 0, false, 'dart'));
+    }
     void col;
   }
   blowMine(m, shot) {
@@ -1648,13 +2042,21 @@ class Game {
         for (const e of this.enemies) {
           if (e.dead) continue;
           if (Math.abs(b.d - e.d) < 70 * e.scale && Math.abs(b.x - e.x) < 46 * e.scale) {
-            e.hp -= dmg * b.pow; e.flash = 1; b.dead = true;
+            const shielded = e.shieldUp; e.hp -= dmg * b.pow * (shielded ? 0.15 : 1); e.flash = shielded ? 0.3 : 1; b.dead = true;
             const ep = this.proj(b.x, e.d, e.elev);
             if (this.time - (this._lastSpark || 0) > 0.03) { this._lastSpark = this.time; this.particles.burst(ep.x, ep.y, { n: 2, speed: [60, 200], life: [0.1, 0.22], size: [3, 5], colors: [PALETTE.white, PALETTE.cyan], sparks: 2, angle: Math.PI / 2, spread: 2.4 }); }
             this.audio.play('hit');
             if (e.hp <= 0) this.killEnemy(e);
             break;
           }
+        }
+      }
+      if (!b.dead) for (const eb of this.eBullets) { // bombs can be shot down
+        if (!eb.bomb || eb.dead) continue;
+        if (Math.abs(b.d - eb.d) < 55 && Math.abs(b.x - eb.x) < 40) {
+          b.dead = true; eb.hp -= dmg * b.pow;
+          if (eb.hp <= 0) { eb.dead = true; const q = this.proj(eb.x, eb.d, ELEV); this.particles.burst(q.x, q.y, { n: 12, speed: [80, 300], colors: ['#ff8a2b', PALETTE.amber, PALETTE.white], sparks: 6 }); this.shockwave(q.x, q.y, '#ff8a2b', 60 * q.s + 20); this.audio.play('explode'); }
+          break;
         }
       }
     }
@@ -1687,6 +2089,24 @@ class Game {
             }
             e.burstT -= dt;
             if (e.burstT <= 0) { e.burstT = p2 ? 0.9 : 1.3; this.enemyFire(e, 1); }
+          } else if (bt === 'colossus') {
+            if (!e.sweep && e.fireT <= 0) { e.fireT = p2 ? 2.0 : 2.8; e.sweepDir *= -1; e.sweep = { i: 0, n: p2 ? 13 : 9, t: 0 }; e.charge = 1; this.audio.play('charge'); }
+            if (e.sweep) {
+              e.sweep.t -= dt;
+              if (e.sweep.t <= 0) {
+                const sw = e.sweep, k = sw.i / (sw.n - 1), tx = -215 + 430 * (e.sweepDir > 0 ? k : 1 - k);
+                this.fireAt(e.x, e.d, tx, 470, Math.round(dmgE * 1.2), { big: true }); this.audio.play('eshot');
+                sw.i++; sw.t = 0.075; if (sw.i >= sw.n) e.sweep = null;
+              }
+            }
+            if (p2) { e.burstT -= dt; if (e.burstT <= 0) { e.burstT = 1.5; this.enemyFire(e, 3); } }
+          } else if (bt === 'serpent') {
+            e.burstT -= dt;
+            if (e.burstT <= 0) {
+              e.burstT = p2 ? 0.3 : 0.48; e.segI = e.segI % 7 + 1;
+              const sp = e.segPos(e.segI); this.fireAt(sp.x, sp.d, p.x + rand(-25, 25), 520, dmgE); this.audio.play('eshot');
+            }
+            if (e.fireT <= 0) { e.fireT = p2 ? 1.8 : 2.6; this.enemyFire(e, p2 ? 5 : 3); }
           } else if (bt === 'hive') {
             e.spawnT -= dt;
             if (e.spawnT <= 0) {
@@ -1700,7 +2120,22 @@ class Game {
         this.dom.bossFill.style.width = (Math.max(0, e.hp) / e.max * 100) + '%';
       } else if (e.kind === 'lancer') {
         if (e.fireT <= 0 && e.d <= e.holdD + 5) { e.fireT = rand(2.6, 3.4); e.charge = 1; this.addBeam(e.x, e.d, { w: 64, tele: 0.95, dur: 0.45, dmg: Math.round(dmgE * 1.3) }); }
+      } else if (e.kind === 'sniper') {
+        if (!e.aimT && e.fireT <= 0 && e.d <= e.holdD + 5) { e.aimT = 0.85; e.aimX = p.x; this.audio.play('charge'); }
+        if (e.aimT > 0) {
+          e.aimT -= dt; if (e.aimT > 0.25) e.aimX = damp(e.aimX, p.x, 3.5, dt);   // tracks you, then locks
+          e.charge = 1 - e.aimT / 0.85;
+          if (e.aimT <= 0) { e.aimT = 0; e.fireT = rand(2.4, 3.2); this.fireAt(e.x, e.d, e.aimX, 1500, Math.round(dmgE * 1.4), { snipe: true }); this.audio.play('zap'); }
+        }
       } else {
+        if (e.kind === 'weaver') {
+          if (e.fireT <= 0 && e.d < 1150 && e.d > 200) { e.fireT = rand(2.0, 2.8); e.burstLeft = 3; e.burstT = 0; }
+          e.burstT -= dt; if (e.burstLeft > 0 && e.burstT <= 0) { e.burstLeft--; e.burstT = 0.16; this.enemyFire(e); }
+        } else if (e.kind === 'bomber') {
+          if (e.fireT <= 0 && e.d < 1300 && e.d > 300) { e.fireT = rand(2.3, 3.0); this.fireAt(e.x, e.d, p.x * 0.7 + e.x * 0.3, 240, Math.round(dmgE * 1.6), { bomb: true, hp: Math.round(30 * stageScale()), ph: rand(0, TAU) }); this.audio.play('eshot'); }
+        } else if (e.kind === 'guardian' || e.kind === 'splitter') {
+          if (e.fireT <= 0 && e.d < 1200 && e.d > 160) { e.fireT = rand(1.6, 2.8) / (1 + 0.08 * save.stage); this.enemyFire(e); }
+        }
         if (e.kind === 'tank') { if (e.fireT <= 0 && e.d < 1200 && e.d > 200) { e.fireT = rand(2.2, 3.0); this.enemyFire(e, 3); } }
         else if (e.kind === 'gunship') { if (e.fireT <= 0 && e.d < 1200 && e.d > 160) { e.fireT = rand(1.1, 2.4) / (1 + 0.08 * save.stage); this.enemyFire(e); } }
         if (Math.abs(e.d) < 40 * (e.scale / 1.7) + 10 && Math.abs(e.x - p.x) < 40 * e.scale) {
@@ -1725,7 +2160,9 @@ class Game {
     for (const b of this.eBullets) {
       b.d += b.vd * dt; b.x += b.vx * dt;
       if (b.d < -300) { b.dead = true; continue; }
-      if (inFlight && Math.abs(b.d) < 26 && Math.abs(b.x - p.x) < 34) { b.dead = true; this.hurt(b.dmg); }
+      if (b.dead) continue;
+      if (b.bomb) b.ph += dt * 6;
+      if (inFlight && Math.abs(b.d) < (b.bomb ? 38 : 26) && Math.abs(b.x - p.x) < (b.bomb ? 48 : 34)) { b.dead = true; this.hurt(b.dmg); if (b.bomb) { const q = this.proj(b.x, 0, ELEV); this.particles.burst(q.x, q.y, { n: 14, speed: [80, 320], colors: ['#ff8a2b', PALETTE.white], sparks: 6 }); } }
     }
     this.eBullets = this.eBullets.filter(b => !b.dead);
 
@@ -1778,7 +2215,14 @@ class Game {
     for (const m of this.mines) this.drawMine(ctx, m, t);
     this.drawBeams(ctx, t);
     const ens = this.enemies.slice().sort((a, b) => b.d - a.d);
-    for (const e of ens) { const q = this.proj(e.x, e.d, e.elev); if (e.d < D_FAR) { ctx.save(); ctx.globalAlpha = 1 - smooth(D_FAR * 0.5, D_FAR * 0.65, e.d); e.render(ctx, t, q.x, q.y, q.s * e.scale); ctx.restore(); } }
+    for (const e of ens) if (e.kind === 'sniper' && e.aimT > 0) { // sniper laser sight
+      const a = this.proj(e.x, e.d, e.elev), b2 = this.proj(e.aimX, -30, ELEV), lock = e.aimT < 0.25;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = hexA(lock ? '#fff6b0' : PALETTE.danger, lock ? 0.95 : 0.5 + 0.3 * Math.sin(t * 30));
+      ctx.lineWidth = lock ? 2.2 : 1.2; if (!lock) ctx.setLineDash([8, 7]);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.stroke(); ctx.setLineDash([]);
+      const r = lock ? 18 : 12; ctx.drawImage(GlowCache.dot(PALETTE.danger), b2.x - r, b2.y - r, r * 2, r * 2); ctx.restore();
+    }
+    for (const e of ens) { if (e.bossType === 'serpent') e.drawSegments(ctx, t); const q = this.proj(e.x, e.d, e.elev); if (e.d < D_FAR) { ctx.save(); ctx.globalAlpha = 1 - smooth(D_FAR * 0.5, D_FAR * 0.65, e.d); e.render(ctx, t, q.x, q.y, q.s * e.scale); ctx.restore(); } }
     // player bullets
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const bolt = GlowCache.bolt(PALETTE.cyan), bw = bolt.width * 0.7, bh = bolt.height * 0.7;
@@ -1813,8 +2257,17 @@ class Game {
     // enemy bullets
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const b of this.eBullets) {
-      const q = this.proj(b.x, b.d, ELEV), r = Math.max(5, (b.big ? 26 : 18) * q.s);
-      ctx.drawImage(GlowCache.dot(PALETTE.danger), q.x - r, q.y - r, r * 2, r * 2);
+      const q = this.proj(b.x, b.d, ELEV);
+      if (b.bomb) {
+        const r = Math.max(7, 30 * q.s), pu = 0.6 + 0.4 * Math.sin(b.ph);
+        ctx.globalAlpha = 0.8; ctx.drawImage(GlowCache.dot('#ff8a2b'), q.x - r * 1.6 * pu, q.y - r * 1.6 * pu, r * 3.2 * pu, r * 3.2 * pu); ctx.globalAlpha = 1;
+        ctx.strokeStyle = 'rgba(255,220,180,.9)'; ctx.lineWidth = Math.max(1, 2 * q.s); ctx.beginPath();
+        for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + b.ph * 0.3; ctx.moveTo(q.x + Math.cos(a) * r * 0.5, q.y + Math.sin(a) * r * 0.5); ctx.lineTo(q.x + Math.cos(a) * r, q.y + Math.sin(a) * r); }
+        ctx.stroke(); ctx.drawImage(GlowCache.dot(PALETTE.white), q.x - r * 0.35, q.y - r * 0.35, r * 0.7, r * 0.7);
+        continue;
+      }
+      const r = Math.max(5, (b.big ? 26 : b.snipe ? 22 : 18) * q.s);
+      ctx.drawImage(GlowCache.dot(b.snipe ? '#ffe23a' : PALETTE.danger), q.x - r, q.y - r, r * 2, r * 2);
       ctx.drawImage(GlowCache.dot(PALETTE.white), q.x - r * 0.35, q.y - r * 0.35, r * 0.7, r * 0.7);
     }
     ctx.restore();
