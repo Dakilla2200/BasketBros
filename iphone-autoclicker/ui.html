@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TapTask</title>
+<style>
+  :root{--bg:#111316;--panel:#1a1d22;--line:#2a2f37;--fg:#e8eaed;--mut:#8b929c;--acc:#3b82f6;--rec:#ef4444;--ok:#22c55e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;display:flex;gap:16px;padding:16px;height:100vh}
+  #phone{flex:0 0 auto;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+  #screen{height:100%;max-width:45vw;object-fit:contain;border-radius:18px;border:2px solid var(--line);cursor:crosshair;user-select:none;-webkit-user-drag:none;touch-action:none}
+  #dot{position:absolute;width:18px;height:18px;border-radius:50%;border:2px solid var(--rec);transform:translate(-50%,-50%);pointer-events:none;display:none}
+  #side{flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  h1{font-size:18px;margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:0 0 8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+  button{background:#2a2f37;color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:8px 12px;font:inherit;cursor:pointer}
+  button:hover{border-color:var(--mut)}
+  button.rec{background:var(--rec);border-color:var(--rec)}button.play{background:var(--ok);border-color:var(--ok);color:#06150b}
+  button.on{outline:2px solid var(--acc)}
+  input{background:#0d0f12;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px;width:80px;font:inherit}
+  label{color:var(--mut);display:flex;gap:6px;align-items:center}
+  #status{font-variant-numeric:tabular-nums}
+  #steps{max-height:260px;overflow:auto;font:12px ui-monospace,Menlo,monospace}
+  #steps div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)}
+  #steps span.x{cursor:pointer;color:var(--mut)}
+  .mut{color:var(--mut);font-size:12px}
+  .pill{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--mut);margin-right:6px}
+  .pill.r{background:var(--rec);animation:b 1s infinite}.pill.p{background:var(--ok)}
+  @keyframes b{50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div id="phone"><img id="screen" alt="iPhone screen" draggable="false"><div id="dot"></div></div>
+<div id="side">
+  <div class="card">
+    <h1>TapTask</h1>
+    <div id="status" class="row"><span class="pill" id="pill"></span><span id="stxt">idle</span></div>
+    <div class="mut">Click = tap · hold &gt;0.45s = long press · drag = swipe. Every gesture on the mirror goes to the phone.</div>
+  </div>
+  <div class="card">
+    <h2>Record / Replay</h2>
+    <div class="row">
+      <button id="bRec" class="rec">● Record</button>
+      <button id="bPlay" class="play">▶ Play</button>
+      <button id="bStop">■ Stop</button>
+    </div>
+    <div class="row">
+      <label>Loops <input id="loops" type="number" min="0" value="1"></label>
+      <label>Speed × <input id="speed" type="number" min="0.1" step="0.1" value="1"></label>
+      <label>Gap s <input id="gap" type="number" min="0" step="0.1" value="0"></label>
+    </div>
+    <div class="mut">Loops 0 = forever. Hotkeys: Ctrl+Shift+R record, Ctrl+Shift+P play, Esc stop.</div>
+    <div class="row">
+      <button id="bSave">Save .json</button>
+      <button id="bLoad">Load .json</button><input id="file" type="file" accept=".json" hidden>
+      <button id="bClear">Clear</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Auto click (fixed point)</h2>
+    <div class="row">
+      <button id="bPick">⌖ Pick point</button><span id="pt" class="mut">none</span>
+    </div>
+    <div class="row">
+      <label>Every ms <input id="ivl" type="number" min="10" value="100"></label>
+      <label>Count <input id="cnt" type="number" min="0" value="0"></label>
+      <button id="bAuto" class="play">▶ Start</button>
+    </div>
+    <div class="mut">Count 0 = until Stop. Real rate is capped by WDA (~5–15 taps/s).</div>
+  </div>
+  <div class="card">
+    <h2>Steps <span id="nsteps"></span></h2>
+    <div id="steps"></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const img = $('screen'), dot = $('dot');
+let st = {}, picking = false, point = null, busy = false;
+
+async function api(path, body) {
+  const r = await fetch('/api/' + path, body === undefined ? {} :
+    {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (j.error) { $('stxt').textContent = 'error: ' + j.error; throw new Error(j.error); }
+  return j;
+}
+
+// ---- mirror: MJPEG stream if available, otherwise poll screenshots
+function poll() { img.onload = () => setTimeout(() => img.src = '/api/screen?' + Date.now(), 150);
+                  img.onerror = () => setTimeout(() => img.src = '/api/screen?' + Date.now(), 1000);
+                  img.src = '/api/screen?' + Date.now(); }
+api('state').then(s => {
+  if (s.mjpeg) { img.onerror = () => { img.onerror = null; poll(); }; img.src = s.mjpeg; }
+  else poll();
+});
+
+// ---- gestures on the mirror
+function frac(e) {
+  const r = img.getBoundingClientRect();
+  return {x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+          y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))};
+}
+function showDot(e) {
+  const r = img.getBoundingClientRect(), p = $('phone').getBoundingClientRect();
+  dot.style.left = (e.clientX - p.left) + 'px'; dot.style.top = (e.clientY - p.top) + 'px';
+  dot.style.display = 'block'; setTimeout(() => dot.style.display = 'none', 250);
+}
+let down = null;
+img.addEventListener('pointerdown', e => { e.preventDefault(); img.setPointerCapture(e.pointerId);
+  down = {...frac(e), t: performance.now()}; });
+img.addEventListener('pointerup', async e => {
+  if (!down) return;
+  const up = frac(e), ms = Math.round(performance.now() - down.t);
+  const moved = Math.hypot(up.x - down.x, up.y - down.y) > 0.02;
+  const d = down; down = null; showDot(e);
+  if (picking) { point = {x: d.x, y: d.y}; picking = false; $('bPick').classList.remove('on');
+    $('pt').textContent = `${(d.x*100).toFixed(1)}%, ${(d.y*100).toFixed(1)}%`; return; }
+  const a = moved ? {kind: 'swipe', x: d.x, y: d.y, x2: up.x, y2: up.y, ms: Math.min(ms, 3000)}
+        : ms > 450 ? {kind: 'hold', x: d.x, y: d.y, ms} : {kind: 'tap', x: d.x, y: d.y};
+  try { await api('action', a); } catch {}
+  refresh();
+});
+
+// ---- controls
+$('bRec').onclick = async () => { await api('record', {on: !st.recording}); refresh(); };
+$('bPlay').onclick = async () => { await api('play', {loops: +$('loops').value, speed: +$('speed').value, loopGap: +$('gap').value}); refresh(); };
+$('bStop').onclick = async () => { await api('stop', {}); refresh(); };
+$('bClear').onclick = async () => { await api('macro', {steps: []}); refresh(); };
+$('bPick').onclick = () => { picking = !picking; $('bPick').classList.toggle('on', picking); };
+$('bAuto').onclick = async () => { if (!point) { $('stxt').textContent = 'pick a point first'; return; }
+  await api('autoclick', {...point, interval: +$('ivl').value, count: +$('cnt').value}); refresh(); };
+$('bSave').onclick = async () => {
+  const m = await api('macro'); const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(m, null, 1)], {type: 'application/json'}));
+  a.download = 'macro.json'; a.click(); };
+$('bLoad').onclick = () => $('file').click();
+$('file').onchange = async e => { const f = e.target.files[0]; if (!f) return;
+  await api('macro', JSON.parse(await f.text())); e.target.value = ''; refresh(); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('bStop').click();
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'r') { e.preventDefault(); $('bRec').click(); }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); $('bPlay').click(); }
+});
+
+// ---- status
+async function refresh() {
+  if (busy) return; busy = true;
+  try {
+    st = await api('state');
+    $('pill').className = 'pill' + (st.recording ? ' r' : st.playing ? ' p' : '');
+    $('stxt').textContent = st.recording ? `recording · ${st.steps} steps` : st.playing ? `playing · ${st.progress}` : `idle · ${st.steps} steps${st.progress === 'done' ? ' · finished' : ''}`;
+    $('bRec').textContent = st.recording ? '■ Stop recording' : '● Record';
+    const m = await api('macro'); $('nsteps').textContent = `(${m.steps.length})`;
+    $('steps').innerHTML = m.steps.map((s, i) =>
+      `<div><span>${i+1}. +${(s.delay||0).toFixed(2)}s ${s.kind} ${(s.x*100).toFixed(0)},${(s.y*100).toFixed(0)}${s.kind==='swipe'?` → ${(s.x2*100).toFixed(0)},${(s.y2*100).toFixed(0)}`:''}${s.ms?` ${s.ms}ms`:''}</span><span class="x" data-i="${i}">✕</span></div>`).join('');
+  } catch {} finally { busy = false; }
+}
+$('steps').onclick = async e => { if (e.target.dataset.i) { await api('macro/delete', {index: +e.target.dataset.i}); refresh(); } };
+setInterval(refresh, 700); refresh();
+</script>
+</body>
+</html>
