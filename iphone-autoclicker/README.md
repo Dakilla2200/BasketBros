@@ -82,6 +82,6 @@ This is built into iOS and gives you a phone-only record/replay, but it's clunki
 2. **Switch Control › Saved Gestures › Create New Gesture**: tap or swipe the pattern you want to repeat, then **Save**.
 3. **Switch Control › Recipes › Create New Recipe**: name it, then **Assign Switch › Full Screen › Custom Gesture**, and choose or record the gesture.
 4. **Recipes › Launch Recipe** → choose it. Add Switch Control to **Accessibility Shortcut** (triple-click the side button) to turn it on and off.
-5. Turn Switch Control on, then tap anywhere and the recorded gesture plays. Holding the screen repeats it.
+5. Turn Switch Control on, then tap anywhere and the recorded gesture plays once per tap.
 
 You can't set loop counts or intervals, and it's awkward to exit (triple-click again).
