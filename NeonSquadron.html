@@ -433,7 +433,16 @@ const RESET_SAVE = { cash: 0, stage: 1, maxStage: 1, power: 1, rate: 1, income: 
 const startLevel = () => 10 + 8 * (save.power - 1);
 const baseRate = () => 5 + 0.4 * (save.rate - 1);
 const incomeMult = () => 1 + 0.2 * (save.income - 1);
-const stageScale = () => Math.pow(1.55, save.stage - 1);
+// Enemy toughness per stage. Stages 1-8 keep the original steep curve. After that,
+// toughness tracks the stage's gate/ring values (which is what grows the player's
+// Level, and so their damage) plus 4% per stage, so high stages stay hard but are
+// always beatable without needing a lucky chain of x2 gates.
+const SOFT_FROM = 8;
+const gateScale = st => 1 + 0.3 * (st - 1);
+const toughness = (st, steep) => st <= SOFT_FROM ? Math.pow(steep, st - 1)
+  : Math.pow(steep, SOFT_FROM - 1) * Math.pow(gateScale(st) / gateScale(SOFT_FROM), 1.3) * Math.pow(1.04, st - SOFT_FROM);
+const stageScale = () => toughness(save.stage, 1.55);
+const bossScale = () => toughness(save.stage, 1.6);
 const theme = () => THEMES[(save.stage - 1) % THEMES.length];
 
 /* =====================================================================
@@ -1932,7 +1941,7 @@ class Game {
   }
   spawnBoss() {
     const b = this.bossDef;
-    const hp = Math.round(2600 * Math.pow(1.6, save.stage - 1) * b.hp);
+    const hp = Math.round(2600 * bossScale() * b.hp);
     this.boss = new Gunship(this, 0, 2600, hp, b.hue, true, 'boss', b.id);
     this.enemies.push(this.boss);
     document.getElementById('bossName').textContent = b.name.toUpperCase();
